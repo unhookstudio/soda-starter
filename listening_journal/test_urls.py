@@ -11,7 +11,7 @@ def test_liveness_url_has_no_dependency_checks():
 
 
 @pytest.mark.django_db
-def test_readiness_checks_database_and_cache():
+def test_readiness_checks_database():
     response = Client().get("/health/ready/")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}

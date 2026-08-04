@@ -28,21 +28,12 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-      redis:
-        image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
       DJANGO_SETTINGS_MODULE: listening_journal.settings.ci
       POSTGRES_DB: listening_journal_test
       POSTGRES_USER: listening_journal
       POSTGRES_PASSWORD: listening_journal
       POSTGRES_HOST: 127.0.0.1
-      REDIS_URL: redis://127.0.0.1:6379/1
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:

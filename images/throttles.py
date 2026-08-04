@@ -1,12 +1,13 @@
 import logging
 
 from django.conf import settings
-from ninja.throttling import AnonRateThrottle, UserRateThrottle
+
+from core.throttling import PostgresAnonRateThrottle, PostgresRateThrottle
 
 logger = logging.getLogger("audit")
 
 
-class LoggingUserRateThrottle(UserRateThrottle):
+class LoggingUserRateThrottle(PostgresRateThrottle):
     """User rate throttle that logs when a request is throttled (429)."""
 
     def __init__(self, scope: str, rate: str):
@@ -40,6 +41,10 @@ class LoggingUserRateThrottle(UserRateThrottle):
         return allowed
 
 
+class ShareLinkRateThrottle(PostgresAnonRateThrottle):
+    scope = "images_share_resolve"
+
+
 upload_throttle = LoggingUserRateThrottle(
     "images_upload", getattr(settings, "IMAGES_RATE_LIMIT_UPLOAD", "60/h")
 )
@@ -59,6 +64,6 @@ bulk_detach_throttle = LoggingUserRateThrottle(
     "images_bulk_detach",
     getattr(settings, "IMAGES_RATE_LIMIT_BULK_DETACH", "60/h"),
 )
-share_link_throttle = AnonRateThrottle(
+share_link_throttle = ShareLinkRateThrottle(
     getattr(settings, "IMAGES_RATE_LIMIT_SHARE_RESOLVE", "120/h")
 )

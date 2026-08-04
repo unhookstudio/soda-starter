@@ -16,7 +16,7 @@ The current foundation includes:
 - organization roles, contacts, tags, and private images;
 - durable idempotency and asynchronous organization exports;
 - S3-compatible private storage and expiring image shares;
-- Redis, Celery, and Beat for background work; and
+- Procrastinate's PostgreSQL task queue for background and periodic work; and
 - a single-host production Compose example behind Caddy.
 
 Some inherited subsystems will be removed or replaced as the rewrite's product
@@ -30,7 +30,7 @@ Compose.
 
 ```sh
 cp env.example .env
-docker compose up -d db redis
+docker compose up -d db
 uv sync --frozen
 uv run python manage.py migrate
 uv run python manage.py seed_demo --password local-demo-password
@@ -42,11 +42,10 @@ uv run python manage.py runserver
 - Health: `http://localhost:8000/health/live/` and `/health/ready/`
 - Admin: `http://localhost:8000/admin/`
 
-Run Celery when working on email, exports, or scheduled cleanup:
+Run the Procrastinate worker when working on email, exports, or scheduled cleanup:
 
 ```sh
-uv run celery -A listening_journal worker -l INFO --queues=celery,email,exports,maintenance
-uv run celery -A listening_journal beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+uv run python manage.py procrastinate worker --queues=email,exports,maintenance
 ```
 
 Development email is written to the console. Media workflows require the
@@ -55,6 +54,7 @@ configured private S3-compatible bucket; tests use isolated local storage.
 ## Verification
 
 ```sh
+docker compose up -d db
 uv run pytest -q
 uv run mypy .
 uv run black --check .
@@ -65,7 +65,7 @@ uv run python manage.py check --database default
 uv run pip-audit
 ```
 
-CI also tests PostgreSQL, Redis, SMTP, S3-compatible storage, migrations,
+CI also tests PostgreSQL, SMTP, S3-compatible storage, migrations,
 production settings, the container image, OpenAPI drift, and secret scanning.
 
 ## Current operating assumptions
@@ -80,8 +80,8 @@ production settings, the container image, OpenAPI drift, and secret scanning.
   request a short-lived user/contact avatar URL; anonymous media access requires
   an explicit image share.
 - PostgreSQL is part of the application contract. PostGIS is optional.
-- Redis is currently disposable cache and broker state. PostgreSQL remains
-  authoritative for domain data, sessions, idempotency, and jobs.
+- PostgreSQL is authoritative for domain data, sessions, idempotency, jobs,
+  and coordinated API rate limits. The application has no Redis dependency.
 
 These assumptions are reviewed as part of the rewrite. Changes must update
 authorization, schemas, tests, OpenAPI, deployment configuration, and client
@@ -90,7 +90,7 @@ behavior together.
 ## Deployment
 
 [compose.production.yaml](compose.production.yaml) is a single-host example
-running Caddy, web, worker, Beat, PostgreSQL, and Redis. It is suitable only when
+running Caddy, web, a Procrastinate worker, and PostgreSQL. It is suitable only when
 single-host failure is acceptable and operations have a named owner; it is not
 a high-availability design.
 

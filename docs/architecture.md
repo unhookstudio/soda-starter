@@ -7,12 +7,12 @@ centralized in `organizations`, while `core` owns shared transport, storage,
 image, logging, health, and email boundaries.
 
 ```text
-HTTP / Celery
+HTTP / Procrastinate worker
     -> API schemas and task entry points
     -> organization scope and role policy
     -> domain services
     -> Django models / PostgreSQL
-    -> Redis, SMTP, or S3-compatible storage at explicit boundaries
+    -> SMTP or S3-compatible storage at explicit boundaries
 ```
 
 ## App responsibilities
@@ -26,15 +26,15 @@ HTTP / Celery
 - `images`: private media library, allowlisted relations, signed URLs and shares.
 - `core`: cross-cutting primitives only; it must not own domain policy.
 
-Database state is authoritative. Redis is disposable cache/broker state. All
+PostgreSQL is authoritative for domain state, jobs, and rate-limit counters. All
 media uses one private object-storage bucket; anonymous access exists only
 through explicit, expiring image-share records. External writes are ordered
 around database transactions and compensated when later steps fail.
 Idempotency records are durable PostgreSQL state: protected database mutations
 and their replay responses commit together under transaction-scoped locks.
 
-Signals are limited to local cache invalidation and narrowly defined lifecycle
-safety. Critical onboarding and deletion flows use explicit transactional
+Signals are limited to narrowly defined lifecycle safety. Critical onboarding
+and deletion flows use explicit transactional
 services so callers can see and test the behavior.
 
 Membership role changes and removals also go through `organizations.services`.

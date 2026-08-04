@@ -114,14 +114,13 @@ Remove only the starter surfaces that are not part of the intended product:
 
 ---
 
-## 6. Replace the background-job subsystem
+## 6. Replace the background-job subsystem ✅
 
 **Replace:**
 
 - Email delivery
 - Expired-token cleanup
 - Idempotency-record cleanup
-- Abandoned-image cleanup
 - Organization export generation
 - Export enqueueing and retries
 - Export heartbeat and stale-job recovery
@@ -152,7 +151,13 @@ Remove only the starter surfaces that are not part of the intended product:
 
 Organization exports must evolve as catalogue, journal, list, and curator data is ported. Do not describe the export as complete or GDPR-compliant until its coverage and the surrounding operational process have been reviewed. Keep the endpoint disabled or clearly experimental while its payload is incomplete.
 
-Redis also backs Ninja throttling currently. Replace security-sensitive login, registration, verification, and reset throttles with durable PostgreSQL-backed controls. Don't silently switch production throttling to `LocMemCache`, because it is not coordinated across processes.
+Redis-backed Ninja throttling was replaced for login, registration,
+verification, reset, contact search, and image operations with durable,
+PostgreSQL-backed fixed-window controls.
+
+> The inherited code had
+> no abandoned-image cleanup task to migrate; `audit_media` remains the explicit
+> reconciliation tool.
 
 ---
 

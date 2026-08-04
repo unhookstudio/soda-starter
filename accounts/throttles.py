@@ -1,7 +1,7 @@
-from ninja.throttling import UserRateThrottle
+from core.throttling import PostgresRateThrottle
 
 
-class ScopedRateThrottle(UserRateThrottle):
+class ScopedRateThrottle(PostgresRateThrottle):
     def __init__(self, scope: str, rate: str):
         self.scope = scope
         super().__init__(rate)

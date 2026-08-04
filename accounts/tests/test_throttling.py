@@ -57,7 +57,7 @@ def test_supported_proxy_topology_selects_caddy_client_address():
 
 
 @pytest.mark.django_db
-def test_login_throttle_uses_real_cache_and_separates_client_ips():
+def test_login_throttle_uses_postgres_and_separates_client_ips():
     client = Client()
     payload = {"email": "missing@example.com", "password": "wrong"}
 
@@ -169,7 +169,7 @@ def test_authenticated_throttle_follows_user_across_ips_and_separates_users():
     assert other_user.status_code == 200
 
 
-def test_throttle_cache_keys_have_distinct_operation_scopes():
+def test_throttle_bucket_keys_have_distinct_operation_scopes():
     from accounts import throttles
     from contacts import throttles as contact_throttles
     from images import throttles as image_throttles

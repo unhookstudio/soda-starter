@@ -1,23 +1,17 @@
 import pytest
-from django.core.cache import cache
 from ninja.testing import TestClient
 
 from listening_journal.api import api as project_api
 
 
-@pytest.fixture(autouse=True)
-def clear_cache_between_tests():
-    cache.clear()
-    yield
-    cache.clear()
-
-
 @pytest.fixture
 def bypass_throttles(monkeypatch):
     """Explicit opt-out for a test whose request volume is unrelated to throttling."""
-    from ninja.throttling import SimpleRateThrottle
+    from core.throttling import PostgresRateThrottle
 
-    monkeypatch.setattr(SimpleRateThrottle, "allow_request", lambda self, request: True)
+    monkeypatch.setattr(
+        PostgresRateThrottle, "allow_request", lambda self, request, view=None: True
+    )
 
 
 @pytest.fixture(scope="function")

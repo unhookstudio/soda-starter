@@ -98,8 +98,6 @@ def test_patch_me_unauthenticated(api_client):
 
 @pytest.mark.django_db
 def test_email_change_delivery_failure(monkeypatch, settings, api_client):
-    from core import tasks as core_tasks
-
     user = create_test_user(email="failmail@example.com", password="pw")
     response = api_client.post(
         "/token/pair", json={"email": "failmail@example.com", "password": "pw"}
@@ -110,7 +108,7 @@ def test_email_change_delivery_failure(monkeypatch, settings, api_client):
     def fail_send_email_task(*args, **kwargs):
         raise Exception("Simulated email failure")
 
-    monkeypatch.setattr(core_tasks.send_email_task, "delay", fail_send_email_task)
+    monkeypatch.setattr("accounts.services.enqueue_email", fail_send_email_task)
     response = api_client.patch(
         "/auth/email",
         json={"email": "failmail2@example.com", "current_password": "pw"},
