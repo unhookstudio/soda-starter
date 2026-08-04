@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 
-from DjangoApiStarter.api import api  # ensure API loads
+from listening_journal.api import api  # ensure API loads
 from organizations.models import Membership, Organization
 
 User = get_user_model()

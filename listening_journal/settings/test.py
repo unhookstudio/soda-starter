@@ -17,7 +17,7 @@ DATABASES = {
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "soda-starter-tests",
+        "LOCATION": "listening-journal-api-tests",
     }
 }
 

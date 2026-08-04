@@ -68,7 +68,7 @@ def test_export_archive_contains_portable_data_and_media():
         media_name = f"media/{image.pk}/{image.file.name.rsplit('/', 1)[-1]}"
         assert archive.read(media_name) == b"image-bytes"
 
-    assert data["format"] == "soda-starter-portability-export"
+    assert data["format"] == "listening-journal-api-portability-export"
     assert data["organization"]["id"] == organization.pk
     assert data["memberships"][0]["user_id"] == user.pk
     assert data["contacts"][0]["id"] == contact.pk

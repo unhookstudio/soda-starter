@@ -31,8 +31,8 @@ api = NinjaExtraAPI(
     renderer=ORJSONRenderer(),
     urls_namespace="api",
     version="v1",
-    title="SODA Starter",
-    description="Somewhat Opinionated Django API Starter",
+    title="Listening Journal",
+    description="Listening Journal",
 )
 
 api.add_router("/token", token_router, tags=["token"])

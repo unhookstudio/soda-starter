@@ -6,8 +6,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from PIL import Image as PilImage
 
-from DjangoApiStarter.api import api  # noqa: F401 - ensure API is loaded once
 from images.models import Image
+from listening_journal.api import api  # noqa: F401 - ensure API is loaded once
 from organizations.models import Membership, Organization
 from organizations.tests.utils import create_test_group
 

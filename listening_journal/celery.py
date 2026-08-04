@@ -8,11 +8,11 @@ from core.utils.logging import request_id_context
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault(
     "DJANGO_SETTINGS_MODULE",
-    "DjangoApiStarter.settings.production",
+    "listening_journal.settings.production",
 )
 
 # Create the Celery app
-app = Celery("DjangoApiStarter")
+app = Celery("listening_journal")
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.

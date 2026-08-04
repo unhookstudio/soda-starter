@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from core.utils.logging import request_id_context
-from DjangoApiStarter.celery import (
+from listening_journal.celery import (
     add_request_id_header,
     bind_task_request_id,
     clear_task_request_id,

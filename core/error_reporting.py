@@ -14,6 +14,6 @@ def report_exception(
 ) -> None:
     """Report an exception to an external provider when one is configured."""
 
-    # Intentionally a no-op in the starter. Production projects should connect
+    # Intentionally a no-op until production error reporting is selected. Connect
     # their provider here and must not include credentials, tokens, or bodies.
     return None

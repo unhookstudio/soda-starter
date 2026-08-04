@@ -42,7 +42,7 @@ WORKDIR /app
 COPY . .
 
 # Collect immutable static assets while building the image.
-RUN DJANGO_SETTINGS_MODULE=DjangoApiStarter.settings.test \
+RUN DJANGO_SETTINGS_MODULE=listening_journal.settings.test \
     python manage.py collectstatic --noinput
 
 # Set permissions
@@ -54,7 +54,7 @@ RUN mkdir -p /app/staticfiles && chown -R django:django /app/staticfiles
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    DJANGO_SETTINGS_MODULE=DjangoApiStarter.settings.production \
+    DJANGO_SETTINGS_MODULE=listening_journal.settings.production \
     DJANGO_ENV=production
 
 # Expose port
@@ -64,4 +64,4 @@ EXPOSE 8000
 USER django
 
 # Command to run the application
-CMD ["gunicorn", "DjangoApiStarter.wsgi:application", "-c", "gunicorn.conf.py"]
+CMD ["gunicorn", "listening_journal.wsgi:application", "-c", "gunicorn.conf.py"]

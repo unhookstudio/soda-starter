@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
-PROJECT_NAME = env.str("PROJECT_NAME", default="SODA Starter")
+PROJECT_NAME = env.str("PROJECT_NAME", default="Listening Journal")
 FRONTEND_URL = env.str("FRONTEND_URL", default="http://localhost:3000")
 
 SECRET_KEY = env.str(
@@ -68,7 +68,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "DjangoApiStarter.middleware.RequestContextMiddleware",
+    "listening_journal.middleware.RequestContextMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -82,9 +82,9 @@ MIDDLEWARE = [
 ]
 
 AUTH_USER_MODEL = "accounts.User"
-ROOT_URLCONF = "DjangoApiStarter.urls"
-WSGI_APPLICATION = "DjangoApiStarter.wsgi.application"
-ASGI_APPLICATION = "DjangoApiStarter.asgi.application"
+ROOT_URLCONF = "listening_journal.urls"
+WSGI_APPLICATION = "listening_journal.wsgi.application"
+ASGI_APPLICATION = "listening_journal.asgi.application"
 
 TEMPLATES = [
     {
@@ -256,8 +256,8 @@ NINJA_JWT = {
     "UPDATE_LAST_LOGIN": False,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": JWT_SIGNING_KEY,
-    "AUDIENCE": env.str("JWT_AUDIENCE", default="soda-starter"),
-    "ISSUER": env.str("JWT_ISSUER", default="soda-starter"),
+    "AUDIENCE": env.str("JWT_AUDIENCE", default="listening-journal-api"),
+    "ISSUER": env.str("JWT_ISSUER", default="listening-journal-api"),
 }
 BROWSER_REFRESH_COOKIE_NAME = "browser_refresh"
 BROWSER_REFRESH_COOKIE_PATH = "/api/v1/auth/browser/"

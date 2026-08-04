@@ -13,7 +13,7 @@ token from Keychain, discard the in-memory access token, and present login.
 
 JWTs use HS256 with an issuer, audience, and a signing key independent from
 Django's `SECRET_KEY`. To rotate normally, deploy support for both old and new
-keys before issuing with the new key; this starter's single-key configuration
+keys before issuing with the new key; the current single-key configuration
 instead requires all users to sign in again. For emergency revocation, replace
 the signing key, increment every active user's `auth_version`, revoke active
 sessions, and restart web/workers.

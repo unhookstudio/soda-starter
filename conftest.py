@@ -2,7 +2,7 @@ import pytest
 from django.core.cache import cache
 from ninja.testing import TestClient
 
-from DjangoApiStarter.api import api as project_api
+from listening_journal.api import api as project_api
 
 
 @pytest.fixture(autouse=True)

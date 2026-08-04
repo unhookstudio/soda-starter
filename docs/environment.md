@@ -1,7 +1,7 @@
 # Environment variables
 
 `env.example` documents development values and `env.production.example` is the
-production template. Production rejects missing mandatory values.
+production configuration. Production rejects missing mandatory values.
 
 | Area | Variables |
 | --- | --- |

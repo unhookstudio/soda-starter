@@ -1901,8 +1901,8 @@
     }
   },
   "info": {
-    "description": "Somewhat Opinionated Django API Starter",
-    "title": "SODA Starter",
+    "description": "Listening Journal",
+    "title": "Listening Journal",
     "version": "v1"
   },
   "openapi": "3.1.0",

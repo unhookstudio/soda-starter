@@ -7,7 +7,7 @@ from accounts.admin import UserAdmin
 from accounts.models import AuthSession, User
 from accounts.services import deactivate_user, set_user_active_status
 from accounts.tests.utils import create_test_user
-from DjangoApiStarter.api import api
+from listening_journal.api import api
 
 
 def login(client, user, password="testpassword"):

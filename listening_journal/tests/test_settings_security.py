@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parents[1].parent
 
 
 def _import_settings_with_env(
-    extra_env, code="import DjangoApiStarter.settings.production"
+    extra_env, code="import listening_journal.settings.production"
 ):
     env = os.environ.copy()
     env.update(
@@ -73,7 +73,7 @@ def test_supported_caddy_proxy_count_is_explicit():
             "SECRET_KEY": "not-the-default-secret-key",
         },
         code=(
-            "from DjangoApiStarter.settings.production import NINJA_NUM_PROXIES; "
+            "from listening_journal.settings.production import NINJA_NUM_PROXIES; "
             "print(NINJA_NUM_PROXIES)"
         ),
     )
@@ -104,7 +104,7 @@ def test_production_application_logs_use_json_without_django_duplication():
         },
         code=(
             "import json; "
-            "from DjangoApiStarter.settings.production import LOGGING; "
+            "from listening_journal.settings.production import LOGGING; "
             "print(json.dumps(LOGGING))"
         ),
     )

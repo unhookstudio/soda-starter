@@ -32,7 +32,7 @@ def serialize_org_data(job: ExportJob) -> dict[str, Any]:
         image__organization=org
     ).select_related("image", "content_type")
     return {
-        "format": "soda-starter-portability-export",
+        "format": "listening-journal-api-portability-export",
         "version": 1,
         "generated_at": timezone.now().isoformat(),
         "organization": {

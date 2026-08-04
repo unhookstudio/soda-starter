@@ -1,6 +1,6 @@
 # Optional PostGIS
 
-The starter defaults to standard PostgreSQL because no included model has a GIS
+Listening Journal defaults to standard PostgreSQL because no current model has a GIS
 field. Adding PostGIS later is easier and safer than carrying native GIS
 libraries, a specialized image, and an extension in every application that does
 not use them.

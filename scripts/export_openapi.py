@@ -8,6 +8,6 @@ import django
 
 django.setup()
 
-from DjangoApiStarter.api import api
+from listening_journal.api import api
 
 print(json.dumps(api.get_openapi_schema(), indent=2, sort_keys=True))

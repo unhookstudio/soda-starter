@@ -26,12 +26,12 @@ def smoke_s3() -> None:
     client = boto3.client(
         "s3",
         endpoint_url=endpoint,
-        aws_access_key_id="starter-access",
-        aws_secret_access_key="starter-secret",
+        aws_access_key_id="listening-journal-access",
+        aws_secret_access_key="listening-journal-secret",
         region_name="us-east-1",
         config=Config(s3={"addressing_style": "path"}),
     )
-    bucket = "starter-smoke"
+    bucket = "listening-journal-smoke"
     key = f"smoke/{uuid.uuid4().hex}.txt"
     client.create_bucket(Bucket=bucket)
     client.put_object(Bucket=bucket, Key=key, Body=b"provider-smoke")
@@ -54,7 +54,7 @@ def smoke_smtp() -> None:
     message = EmailMessage(
         subject=marker,
         body="SMTP provider smoke test",
-        from_email="starter@example.test",
+        from_email="listening-journal@example.test",
         to=["recipient@example.test"],
         connection=backend,
     )

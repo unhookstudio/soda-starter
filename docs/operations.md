@@ -77,8 +77,7 @@ cannot preserve referential integrity.
 
 ## Release exercise
 
-Before calling a derived product production-ready, execute the final gate in the
-[hardening checklist](hardening/production-readiness-checklist.md) against real
-PostgreSQL, Redis, SMTP capture, and S3-compatible services. CI verifies code;
-operators must still prove DNS/TLS, delivery, backups, restoration, monitoring,
-and provider permissions in the target environment.
+Before calling Listening Journal production-ready, exercise the deployment
+against real PostgreSQL, Redis, SMTP capture, and S3-compatible services. CI
+verifies code; operators must still prove DNS/TLS, delivery, backups,
+restoration, monitoring, and provider permissions in the target environment.

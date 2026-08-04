@@ -1,5 +1,5 @@
 """
-ASGI config for DjangoApiStarter project.
+ASGI config for listening_journal project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "DjangoApiStarter.settings.production")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "listening_journal.settings.production")
 
 application = get_asgi_application()

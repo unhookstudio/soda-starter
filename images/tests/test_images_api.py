@@ -8,8 +8,8 @@ from django.test import Client
 from PIL import Image as PilImage
 
 from accounts.tests.utils import create_test_user
-from DjangoApiStarter.api import api
 from images.models import Image
+from listening_journal.api import api
 from organizations.models import Membership, Organization
 from organizations.tests.utils import create_test_group
 

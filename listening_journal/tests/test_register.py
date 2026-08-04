@@ -3,7 +3,7 @@ from ninja.testing import TestClient
 
 from accounts.models import PendingRegistration, User
 from accounts.tests.utils import create_test_user
-from DjangoApiStarter.api import api
+from listening_journal.api import api
 
 
 @pytest.mark.django_db

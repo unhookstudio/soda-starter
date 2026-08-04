@@ -2,9 +2,9 @@
 
 ## Supported version
 
-Security fixes are applied to the current `main` branch. Derived applications
-must track and integrate relevant fixes themselves; the starter does not provide
-backports or a compatibility guarantee for older snapshots.
+Security fixes are applied to the current `main` branch. There is no backport or
+compatibility guarantee for older revisions while the backend rewrite is in
+progress.
 
 ## Report a vulnerability
 

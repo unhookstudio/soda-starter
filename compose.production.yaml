@@ -1,4 +1,4 @@
-name: soda-starter
+name: listening-journal-api
 
 x-app: &app
   image: ${APP_IMAGE:?Set APP_IMAGE to an immutable image tag}
@@ -6,7 +6,7 @@ x-app: &app
   env_file:
     - ${APP_ENV_FILE:-.env.production}
   environment:
-    DJANGO_SETTINGS_MODULE: DjangoApiStarter.settings.production
+    DJANGO_SETTINGS_MODULE: listening_journal.settings.production
     POSTGRES_HOST: db
     POSTGRES_PORT: "5432"
     REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD}@redis:6379/1
@@ -25,7 +25,7 @@ x-app: &app
 services:
   web:
     <<: *app
-    command: gunicorn DjangoApiStarter.wsgi:application -c gunicorn.conf.py
+    command: gunicorn listening_journal.wsgi:application -c gunicorn.conf.py
     expose:
       - "8000"
     depends_on:
@@ -42,7 +42,7 @@ services:
 
   worker:
     <<: *app
-    command: celery -A DjangoApiStarter worker --loglevel=INFO --queues=celery,email,exports,maintenance
+    command: celery -A listening_journal worker --loglevel=INFO --queues=celery,email,exports,maintenance
     depends_on:
       db:
         condition: service_healthy
@@ -51,7 +51,7 @@ services:
 
   beat:
     <<: *app
-    command: celery -A DjangoApiStarter beat --loglevel=INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A listening_journal beat --loglevel=INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
     depends_on:
       db:
         condition: service_healthy

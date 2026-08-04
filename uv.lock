@@ -1454,7 +1454,7 @@ wheels = [
 ]
 
 [[package]]
-name = "soda-starter"
+name = "listening-journal-api"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
