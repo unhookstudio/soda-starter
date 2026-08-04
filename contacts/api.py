@@ -1,0 +1,262 @@
+import uuid
+from typing import Annotated, List, Literal
+
+from django.db import transaction
+from django.db.models import Case, IntegerField, Q, Value, When
+from django.shortcuts import get_object_or_404
+from ninja import File, Query, Router, Status, UploadedFile
+from ninja.errors import HttpError
+from ninja.pagination import LimitOffsetPagination, paginate
+
+from contacts.services import (
+    contact_response_queryset,
+    create_contact_record,
+    replace_contact_record,
+    update_contact_record,
+)
+from contacts.throttles import contact_search_throttle
+from core.authentication import JWTAuth
+from core.schemas import AvatarUrlsOut, DetailResponse
+from core.utils.avatar import schedule_avatar_file_deletion, sign_avatar_urls
+from core.utils.image import (
+    InvalidImageContent,
+    resize_avatar_images,
+)
+from core.utils.storage import delete_storage_keys, upload_to_storage
+from core.utils.uploads import UploadTooLarge, read_uploaded_file_bounded
+from organizations.scope import resolve_org_scope, resolve_write_org_scope
+
+from .models import Contact
+from .schemas import (
+    ContactIn,
+    ContactOut,
+    ContactReplace,
+    ContactUpdate,
+)
+from .validation import MAX_CONTACT_SEARCH_LENGTH, MAX_CONTACT_SEARCH_TERMS
+
+contacts_router = Router()
+
+# Define allowed sort fields and their corresponding model fields
+ALLOWED_SORT_FIELDS = {
+    "display_name": "display_name",
+    "first_name": "first_name",
+    "last_name": "last_name",
+    "email": "email",
+    "created_at": "created_at",
+    "updated_at": "updated_at",
+}
+
+
+@contacts_router.get(
+    "/contacts/{contact_id}/avatar", response=AvatarUrlsOut, auth=JWTAuth()
+)
+def get_contact_avatar(request, contact_id: int):
+    contact = get_object_or_404(Contact, id=contact_id)
+    if not contact.avatar_path:
+        raise HttpError(404, "Avatar not found.")
+    return sign_avatar_urls(contact.avatar_path)
+
+
+@contacts_router.get(
+    "/orgs/{org_slug}/contacts/",
+    response=List[ContactOut],
+    auth=JWTAuth(),
+    throttle=[contact_search_throttle],
+)
+@paginate(LimitOffsetPagination)
+def list_contacts(
+    request,
+    org_slug: str,
+    search: Annotated[str | None, Query(max_length=MAX_CONTACT_SEARCH_LENGTH)] = None,
+    sort_by: Literal[
+        "display_name",
+        "first_name",
+        "last_name",
+        "email",
+        "created_at",
+        "updated_at",
+    ] = "display_name",
+    sort_order: Literal["asc", "desc"] = "asc",
+):
+    """
+    List contacts with optional search and sorting.
+
+    Query Parameters:
+    - search: Optional search term to filter contacts
+    - sort_by: Field to sort by (display_name, first_name, last_name, email, created_at, updated_at)
+    - sort_order: Sort order (asc or desc)
+    """
+    scope = resolve_org_scope(request, org_slug)
+    qs = contact_response_queryset().filter(organization=scope.org)
+
+    # Apply search if provided
+    if search:
+        search_terms = search.split()
+        if len(search_terms) > MAX_CONTACT_SEARCH_TERMS:
+            raise HttpError(
+                400,
+                f"Search supports at most {MAX_CONTACT_SEARCH_TERMS} terms.",
+            )
+        search_query = Q()
+
+        # Build a query that requires all terms to match (AND logic)
+        for term in search_terms:
+            term_query = (
+                Q(display_name__icontains=term)  # Highest weight
+                | Q(first_name__icontains=term)  # High weight
+                | Q(last_name__icontains=term)  # Medium weight
+                | Q(email__icontains=term)  # Low weight
+                | Q(notes__icontains=term)  # Lowest weight
+            )
+            search_query &= term_query  # All terms must match (AND logic)
+
+        # Annotate with match scores
+        qs = qs.annotate(
+            match_score=Case(
+                When(display_name__icontains=search, then=Value(5)),
+                When(first_name__icontains=search, then=Value(4)),
+                When(last_name__icontains=search, then=Value(3)),
+                When(email__icontains=search, then=Value(2)),
+                When(notes__icontains=search, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).filter(search_query)
+
+        # If searching, we'll sort by match score first, then by the requested field
+        sort_field = ALLOWED_SORT_FIELDS[sort_by]
+        sort_prefix = "" if sort_order == "asc" else "-"
+        sort_field = f"{sort_prefix}{sort_field}"
+        qs = qs.order_by("-match_score", sort_field)
+    else:
+        # If not searching, just sort by the requested field
+        sort_field = ALLOWED_SORT_FIELDS[sort_by]
+        if sort_order == "desc":
+            sort_field = f"-{sort_field}"
+        qs = qs.order_by(sort_field)
+
+    return qs
+
+
+@contacts_router.get(
+    "/orgs/{org_slug}/contacts/{slug}/", response=ContactOut, auth=JWTAuth()
+)
+def get_contact(request, org_slug: str, slug: str):
+    scope = resolve_org_scope(request, org_slug)
+    contact = get_object_or_404(
+        contact_response_queryset(),
+        organization=scope.org,
+        slug=slug,
+    )
+    return contact
+
+
+@contacts_router.post(
+    "/orgs/{org_slug}/contacts/", response={201: ContactOut}, auth=JWTAuth()
+)
+def create_contact(request, org_slug: str, data: ContactIn):
+    scope = resolve_write_org_scope(request, org_slug)
+    user = scope.user
+    organization = scope.org
+
+    return Status(201, create_contact_record(organization, user, data))
+
+
+@contacts_router.put(
+    "/orgs/{org_slug}/contacts/{slug}/", response=ContactOut, auth=JWTAuth()
+)
+def update_contact(request, org_slug: str, slug: str, data: ContactReplace):
+    scope = resolve_write_org_scope(request, org_slug)
+    contact = get_object_or_404(
+        contact_response_queryset(), organization=scope.org, slug=slug
+    )
+    return replace_contact_record(contact, data)
+
+
+@contacts_router.patch(
+    "/orgs/{org_slug}/contacts/{slug}/", response=ContactOut, auth=JWTAuth()
+)
+def partial_update_contact(request, org_slug: str, slug: str, data: ContactUpdate):
+    scope = resolve_write_org_scope(request, org_slug)
+    contact = get_object_or_404(
+        contact_response_queryset(), organization=scope.org, slug=slug
+    )
+    return update_contact_record(contact, data)
+
+
+@contacts_router.post(
+    "/orgs/{org_slug}/contacts/{slug}/avatar/",
+    response=AvatarUrlsOut,
+    auth=JWTAuth(),
+)
+def upload_contact_avatar(
+    request, org_slug: str, slug: str, file: UploadedFile = File(...)
+):
+    """
+    Upload and set avatar for a contact. Stores small and large sizes, updates avatar_path.
+    """
+    scope = resolve_write_org_scope(request, org_slug)
+    contact = get_object_or_404(Contact, organization=scope.org, slug=slug)
+    # File validation: max size 10MB
+    MAX_SIZE = 10 * 1024 * 1024
+    if (file.size or 0) > MAX_SIZE:
+        raise HttpError(400, "File too large. Maximum allowed size is 10MB.")
+    if not str(file.content_type or "").startswith("image/"):
+        raise HttpError(400, "Invalid file type. Only images are allowed.")
+    try:
+        data = read_uploaded_file_bounded(file, max_bytes=MAX_SIZE)
+    except UploadTooLarge as exc:
+        raise HttpError(400, "File too large. Maximum allowed size is 10MB.") from exc
+    try:
+        small_bytes, large_bytes = resize_avatar_images(data)
+        token = uuid.uuid4().hex
+        filename = f"avatars/contacts/{token}.webp"
+        large_filename = f"avatars/contacts/{token}_lg.webp"
+        old_avatar_path = contact.avatar_path
+        uploaded: list[str] = []
+        try:
+            upload_to_storage(filename, small_bytes)
+            uploaded.append(filename)
+            upload_to_storage(large_filename, large_bytes)
+            uploaded.append(large_filename)
+            signed_urls = sign_avatar_urls(filename)
+            with transaction.atomic():
+                contact.avatar_path = filename
+                contact.save(update_fields=["avatar_path", "updated_at"])
+                if old_avatar_path:
+                    schedule_avatar_file_deletion(old_avatar_path)
+        except Exception:
+            delete_storage_keys(uploaded)
+            raise
+        return signed_urls
+    except InvalidImageContent as exc:
+        raise HttpError(400, str(exc)) from exc
+    except Exception as exc:
+        raise HttpError(503, "Avatar upload is temporarily unavailable.") from exc
+
+
+@contacts_router.delete(
+    "/orgs/{org_slug}/contacts/{slug}/avatar/", auth=JWTAuth(), response=DetailResponse
+)
+def delete_contact_avatar(request, org_slug: str, slug: str):
+    scope = resolve_write_org_scope(request, org_slug)
+    contact = get_object_or_404(Contact, organization=scope.org, slug=slug)
+    if not contact.avatar_path:
+        raise HttpError(404, "No avatar to delete.")
+    old_avatar_path = contact.avatar_path
+    with transaction.atomic():
+        contact.avatar_path = None
+        contact.save(update_fields=["avatar_path", "updated_at"])
+        schedule_avatar_file_deletion(old_avatar_path)
+    return DetailResponse(detail="Avatar deleted.")
+
+
+@contacts_router.delete(
+    "/orgs/{org_slug}/contacts/{slug}/", response=DetailResponse, auth=JWTAuth()
+)
+def delete_contact(request, org_slug: str, slug: str):
+    scope = resolve_write_org_scope(request, org_slug)
+    contact = get_object_or_404(Contact, organization=scope.org, slug=slug)
+    contact.delete()
+    return DetailResponse(detail="Contact deleted.")

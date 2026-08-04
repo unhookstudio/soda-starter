@@ -1,0 +1,212 @@
+import io
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils.datastructures import MultiValueDict
+from PIL import Image
+
+from accounts.tests.utils import create_test_user
+
+User = get_user_model()
+
+
+def create_test_image(format="PNG", size=(100, 100)):
+    image = Image.new("RGB", size, color=(255, 0, 0))
+    buf = io.BytesIO()
+    image.save(buf, format=format)
+    buf.seek(0)
+    return buf
+
+
+@pytest.mark.django_db
+def test_avatar_upload_too_large(monkeypatch, api_client):
+    user = create_test_user(email="bigavatar@example.com", password="pw")
+    response = api_client.post(
+        "/token/pair", json={"email": "bigavatar@example.com", "password": "pw"}
+    )
+    access = response.json()["access"]
+    headers = {"Authorization": f"Bearer {access}"}
+    # Create a dummy 11MB file for upload
+    large_bytes = b"x" * (11 * 1024 * 1024)
+    uploaded = SimpleUploadedFile("large.png", large_bytes, content_type="image/png")
+    files = MultiValueDict({"file": [uploaded]})
+    response = api_client.post("/users/avatar", data={}, FILES=files, headers=headers)
+    assert response.status_code == 400
+    assert "too large" in response.json()["detail"].lower()
+
+
+@pytest.mark.django_db
+def test_avatar_upload_invalid_content_type(api_client):
+    user = create_test_user(email="badtype@example.com", password="pw")
+    response = api_client.post(
+        "/token/pair", json={"email": "badtype@example.com", "password": "pw"}
+    )
+    access = response.json()["access"]
+    headers = {"Authorization": f"Bearer {access}"}
+    img_buf = create_test_image()
+    img_buf.name = "notanimage.txt"
+
+    class FakeFile(io.BytesIO):
+        size = len(img_buf.getvalue())
+        content_type = "text/plain"
+        name = "notanimage.txt"
+        file = property(lambda self: self)
+
+    fake_file = FakeFile(img_buf.read())
+    uploaded = SimpleUploadedFile(
+        fake_file.name, fake_file.read(), content_type=fake_file.content_type
+    )
+    files = MultiValueDict({"file": [uploaded]})
+    response = api_client.post("/users/avatar", data={}, FILES=files, headers=headers)
+    assert response.status_code == 400
+    assert "invalid file type" in response.json()["detail"].lower()
+
+
+@pytest.mark.django_db
+def test_avatar_upload_corrupt_image(api_client):
+    user = create_test_user(email="corruptimg@example.com", password="pw")
+    response = api_client.post(
+        "/token/pair", json={"email": "corruptimg@example.com", "password": "pw"}
+    )
+    access = response.json()["access"]
+    headers = {"Authorization": f"Bearer {access}"}
+
+    class CorruptFile(io.BytesIO):
+        size = 100
+        content_type = "image/png"
+        name = "corrupt.png"
+        file = property(lambda self: self)
+
+    corrupt_file = CorruptFile(b"notanimageatall")
+    uploaded = SimpleUploadedFile(
+        corrupt_file.name, corrupt_file.read(), content_type=corrupt_file.content_type
+    )
+    files = MultiValueDict({"file": [uploaded]})
+    response = api_client.post("/users/avatar", data={}, FILES=files, headers=headers)
+    assert response.status_code == 400
+    assert "not a valid image" in response.json()["detail"].lower()
+
+
+@pytest.mark.django_db
+def test_avatar_delete_unauthenticated(api_client):
+    response = api_client.delete("/users/avatar")
+    assert response.status_code == 401
+    assert (
+        "authentication required" in response.json()["detail"].lower()
+        or "unauthorized" in response.json()["detail"].lower()
+    )
+
+
+@pytest.mark.django_db
+def test_avatar_delete_authenticated(api_client):
+    user = create_test_user(email="delavatar@example.com", password="pw")
+    user.avatar_path = "avatars/delme.webp"
+    user.save()
+    response = api_client.post(
+        "/token/pair", json={"email": "delavatar@example.com", "password": "pw"}
+    )
+    access = response.json()["access"]
+    headers = {"Authorization": f"Bearer {access}"}
+    response = api_client.delete("/users/avatar", headers=headers)
+    assert response.status_code == 200
+    assert "deleted" in response.json()["detail"].lower()
+    user.refresh_from_db()
+    assert user.avatar_path is None
+
+
+@pytest.mark.django_db
+def test_avatar_delete_when_no_avatar(api_client):
+    user = create_test_user(email="noavatar@example.com", password="pw")
+    user.avatar_path = None
+    user.save()
+    response = api_client.post(
+        "/token/pair", json={"email": "noavatar@example.com", "password": "pw"}
+    )
+    access = response.json()["access"]
+    headers = {"Authorization": f"Bearer {access}"}
+    response = api_client.delete("/users/avatar", headers=headers)
+    assert response.status_code == 200
+    assert "deleted" in response.json()["detail"].lower()
+    user.refresh_from_db()
+    assert user.avatar_path is None
+
+
+@pytest.mark.django_db
+def test_avatar_upload_valid(monkeypatch, api_client):
+    user = create_test_user(email="validavatar@example.com", password="pw")
+    response = api_client.post(
+        "/token/pair", json={"email": "validavatar@example.com", "password": "pw"}
+    )
+    access = response.json()["access"]
+    headers = {"Authorization": f"Bearer {access}"}
+    img_buf = create_test_image(format="PNG", size=(128, 128))
+    uploaded = SimpleUploadedFile(
+        "avatar.png", img_buf.read(), content_type="image/png"
+    )
+    files = MultiValueDict({"file": [uploaded]})
+    # Patch out storage and resize logic to simulate real behavior and capture arguments
+    called = {}
+
+    def fake_resize_avatar_images(img_bytes):
+        called["resized"] = True
+        return b"small", b"large"
+
+    def fake_upload_to_storage(filename, data):
+        called.setdefault("uploads", []).append((filename, data))
+        return filename
+
+    monkeypatch.setattr(
+        "accounts.users_api.resize_avatar_images", fake_resize_avatar_images
+    )
+    monkeypatch.setattr("accounts.users_api.upload_to_storage", fake_upload_to_storage)
+    monkeypatch.setattr(
+        "accounts.users_api.sign_avatar_urls",
+        lambda filename: {
+            "small": f"https://signed.example/{filename}",
+            "large": f"https://signed.example/{filename.removesuffix('.webp')}_lg.webp",
+            "expires_at": "2030-01-01T00:00:00Z",
+        },
+    )
+    response = api_client.post("/users/avatar", data={}, FILES=files, headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "/avatars/users/" in data["small"]
+    assert data["large"].endswith("_lg.webp")
+    assert called.get("resized") is True
+    assert len(called.get("uploads", [])) == 2
+    user.refresh_from_db()
+    assert user.avatar_path.startswith("avatars/users/")
+
+
+@pytest.mark.django_db
+def test_any_authenticated_user_can_resolve_user_avatar(monkeypatch, api_client):
+    owner = create_test_user(email="avatar-owner@example.com", password="pw")
+    viewer = create_test_user(email="avatar-viewer@example.com", password="pw")
+    owner.avatar_path = "avatars/users/owner.webp"
+    owner.save(update_fields=["avatar_path", "updated_at"])
+    monkeypatch.setattr(
+        "accounts.users_api.sign_avatar_urls",
+        lambda filename: {
+            "small": f"https://signed.example/{filename}",
+            "large": f"https://signed.example/{filename.removesuffix('.webp')}_lg.webp",
+            "expires_at": "2030-01-01T00:00:00Z",
+        },
+    )
+    access_response = api_client.post(
+        "/token/pair",
+        json={"email": viewer.email, "password": "pw"},
+    )
+
+    response = api_client.get(
+        f"/users/{owner.slug}/avatar",
+        headers={"Authorization": f"Bearer {access_response.json()['access']}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["small"].endswith("/avatars/users/owner.webp")
+
+
+def test_user_avatar_resolution_requires_authentication(api_client):
+    response = api_client.get("/users/some-user/avatar")
+    assert response.status_code == 401
