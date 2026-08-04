@@ -13,7 +13,7 @@ class TestDeleteAccount:
 
     def test_delete_account_requires_auth(self):
         # Should fail without JWT
-        response = self.client.delete("/auth/delete/")
+        response = self.client.delete("/auth/me")
         assert response.status_code in [401, 403]
 
     def test_delete_account_success(self):
@@ -22,20 +22,19 @@ class TestDeleteAccount:
         password = "testpass123"
         create_test_user(email=email, password=password)
         token_response = self.client.post(
-            "/token/pair", json={"email": email, "password": password}
+            "/auth/login", json={"email": email, "password": password}
         )
-        access_token = token_response.json()["access"]
+        access_token = token_response.json()["access_token"]
         # Delete account with JWT and current password
         response = self.client.delete(
-            "/auth/delete/",
+            "/auth/me",
             json={"password": password},
             headers={"Authorization": f"Bearer {access_token}"},
         )
-        assert response.status_code == 200
-        assert response.json()["detail"] == "Account deleted successfully."
+        assert response.status_code == 204
         # Further requests with same token should fail
         response = self.client.delete(
-            "/auth/delete/",
+            "/auth/me",
             json={"password": password},
             headers={"Authorization": f"Bearer {access_token}"},
         )
@@ -46,12 +45,12 @@ class TestDeleteAccount:
         password = "testpass123"
         user = create_test_user(email=email, password=password)
         token_response = self.client.post(
-            "/token/pair", json={"email": email, "password": password}
+            "/auth/login", json={"email": email, "password": password}
         )
-        access_token = token_response.json()["access"]
+        access_token = token_response.json()["access_token"]
 
         response = self.client.delete(
-            "/auth/delete/",
+            "/auth/me",
             json={"password": "wrong-password"},
             headers={"Authorization": f"Bearer {access_token}"},
         )

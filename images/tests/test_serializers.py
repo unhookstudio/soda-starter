@@ -40,8 +40,8 @@ def test_serialize_image_adds_variant_keys_without_storage_checks(monkeypatch):
     assert out.variant_keys.md == "images/example_md.webp"
     assert out.variant_keys.lg == "images/example_lg.webp"
     assert out.title == "Example"
-    assert out.organization == org.id
-    assert out.creator == user.id
+    assert out.workspace_id == org.id
+    assert out.creator_id == user.id
 
 
 @pytest.mark.django_db

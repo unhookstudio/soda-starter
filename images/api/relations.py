@@ -6,7 +6,7 @@ from ninja.errors import HttpError
 
 from core.authentication import JWTAuth
 from core.utils.idempotency import run_idempotently
-from core.utils.polymorphic import resolve_org_scoped_content_object
+from core.utils.polymorphic import resolve_workspace_scoped_content_object
 from images.api.common import logger, router
 from images.api_schemas import BulkImageIdsIn, ImageIdsIn
 from images.operations import (
@@ -20,15 +20,20 @@ from images.throttles import bulk_attach_throttle, bulk_detach_throttle
 
 
 @router.post(
-    "/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/",
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images",
     response=List[PolymorphicImageRelationOut],
     auth=JWTAuth(),
 )
 def attach_images(
-    request, org_slug: str, app_label: str, model: str, obj_id: UUID, data: ImageIdsIn
+    request,
+    workspace_id: UUID,
+    app_label: str,
+    model: str,
+    object_id: UUID,
+    data: ImageIdsIn,
 ):
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
@@ -52,7 +57,7 @@ def attach_images(
                 getattr(user, "id", None),
                 app_label,
                 model,
-                obj_id,
+                object_id,
                 relation.image_id,
                 relation.id,
             )
@@ -60,21 +65,21 @@ def attach_images(
 
 
 @router.post(
-    "/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/bulk_attach/",
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images/bulk-attach",
     response=BulkAttachOut,
     auth=JWTAuth(),
     throttle=[bulk_attach_throttle],
 )
 def bulk_attach_images(
     request,
-    org_slug: str,
+    workspace_id: UUID,
     app_label: str,
     model: str,
-    obj_id: UUID,
+    object_id: UUID,
     data: BulkImageIdsIn,
 ):
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
@@ -103,7 +108,7 @@ def bulk_attach_images(
                 getattr(user, "id", None),
                 app_label,
                 model,
-                obj_id,
+                object_id,
                 result.attached_image_ids,
             )
         return 200, {"attached": result.attached_image_ids}
@@ -113,21 +118,21 @@ def bulk_attach_images(
 
 
 @router.post(
-    "/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/bulk_detach/",
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images/bulk-detach",
     response=BulkDetachOut,
     auth=JWTAuth(),
     throttle=[bulk_detach_throttle],
 )
 def bulk_detach_images(
     request,
-    org_slug: str,
+    workspace_id: UUID,
     app_label: str,
     model: str,
-    obj_id: UUID,
+    object_id: UUID,
     data: BulkImageIdsIn,
 ):
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
@@ -149,7 +154,7 @@ def bulk_detach_images(
                 getattr(user, "id", None),
                 app_label,
                 model,
-                obj_id,
+                object_id,
                 detached,
             )
         return 200, {"detached": detached}
@@ -159,20 +164,20 @@ def bulk_detach_images(
 
 
 @router.delete(
-    "/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/{image_id}/",
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images/{image_id}",
     auth=JWTAuth(),
     response={204: None},
 )
 def remove_image_from_object(
     request,
-    org_slug: str,
+    workspace_id: UUID,
     app_label: str,
     model: str,
-    obj_id: UUID,
+    object_id: UUID,
     image_id: UUID,
 ):
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
@@ -192,7 +197,7 @@ def remove_image_from_object(
         getattr(user, "id", None),
         app_label,
         model,
-        obj_id,
+        object_id,
         image_id,
     )
     return Status(204, None)

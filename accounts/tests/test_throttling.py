@@ -64,7 +64,7 @@ def test_login_throttle_uses_postgres_and_separates_client_ips():
     for _ in range(10):
         response = post_json(
             client,
-            "/api/v1/token/pair",
+            "/api/v1/auth/login",
             payload,
             client_ip="198.51.100.20",
         )
@@ -72,13 +72,13 @@ def test_login_throttle_uses_postgres_and_separates_client_ips():
 
     limited = post_json(
         client,
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         payload,
         client_ip="198.51.100.20",
     )
     other_ip = post_json(
         client,
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         payload,
         client_ip="198.51.100.21",
     )
@@ -95,7 +95,7 @@ def test_registration_and_reset_use_independent_real_throttle_scopes():
     for index in range(5):
         registration = post_json(
             client,
-            "/api/v1/auth/register/",
+            "/api/v1/auth/register",
             {"email": f"pending-{index}@example.com"},
             client_ip=client_ip,
         )
@@ -105,12 +105,12 @@ def test_registration_and_reset_use_independent_real_throttle_scopes():
             {"email": "missing@example.com"},
             client_ip=client_ip,
         )
-        assert registration.status_code == 200
-        assert reset.status_code == 200
+        assert registration.status_code == 202
+        assert reset.status_code == 202
 
     registration_limited = post_json(
         client,
-        "/api/v1/auth/register/",
+        "/api/v1/auth/register",
         {"email": "pending-final@example.com"},
         client_ip=client_ip,
     )
@@ -140,7 +140,7 @@ def test_authenticated_throttle_follows_user_across_ips_and_separates_users():
     for index in range(3):
         response = patch_json(
             client,
-            "/api/v1/auth/email",
+            "/api/v1/auth/me/email",
             {
                 "email": f"throttle-one-{index}@example.com",
                 "current_password": "pw",
@@ -148,25 +148,25 @@ def test_authenticated_throttle_follows_user_across_ips_and_separates_users():
             client_ip=f"198.51.100.{40 + index}",
             authorization=f"Bearer {first_access}",
         )
-        assert response.status_code == 200
+        assert response.status_code == 202
 
     limited = patch_json(
         client,
-        "/api/v1/auth/email",
+        "/api/v1/auth/me/email",
         {"email": "throttle-one-final@example.com", "current_password": "pw"},
         client_ip="198.51.100.50",
         authorization=f"Bearer {first_access}",
     )
     other_user = patch_json(
         client,
-        "/api/v1/auth/email",
+        "/api/v1/auth/me/email",
         {"email": "throttle-two-new@example.com", "current_password": "pw"},
         client_ip="198.51.100.50",
         authorization=f"Bearer {second_access}",
     )
 
     assert limited.status_code == 429
-    assert other_user.status_code == 200
+    assert other_user.status_code == 202
 
 
 def test_throttle_bucket_keys_have_distinct_operation_scopes():

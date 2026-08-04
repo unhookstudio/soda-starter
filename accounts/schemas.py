@@ -8,29 +8,20 @@ from pydantic import ConfigDict
 from accounts.validation import AccountEmail, GenericEmailInput
 
 
-class UnverifiedUserSchema(Schema):
-    detail: str
-    email_verified: bool = False
-
-
-class CustomTokenOutputSchema(Schema):
-    access: str
-    refresh: str
-    email: str
+class TokenPairOut(Schema):
+    access_token: str
+    refresh_token: str
+    token_type: str = "Bearer"
+    expires_in: int
 
 
 class TokenRefreshInputSchema(Schema):
-    refresh: str
+    refresh_token: str
     model_config = ConfigDict(extra="forbid")
 
 
-class TokenRefreshOutputSchema(Schema):
-    access: str
-    refresh: str
-
-
 class LogoutInputSchema(Schema):
-    refresh: str
+    refresh_token: str
     model_config = ConfigDict(extra="forbid")
 
 
@@ -60,8 +51,11 @@ class ChangePasswordSchema(Schema):
 
 
 class ReauthenticationResponse(Schema):
-    detail: str
     reauthentication_required: bool = True
+
+
+class PendingActionOut(Schema):
+    status: str
 
 
 class DeleteAccountSchema(Schema):
@@ -103,15 +97,13 @@ class UserProfileOut(Schema):
     last_name: str = Field(..., max_length=120)
     username: str = Field(..., max_length=50)
     slug: str
-    org_name: str
-    org_slug: str
     location: Optional[str]
     about: Optional[str]
     has_avatar: bool
     notification_preferences: Optional[dict]
     theme: str
     locale: str
-    current_workspace_id: Optional[UUID] = None
+    current_workspace_id: UUID | None = None
     finished_onboarding: bool
     email_verified: bool
     created_at: Optional[datetime]

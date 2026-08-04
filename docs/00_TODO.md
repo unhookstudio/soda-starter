@@ -161,33 +161,27 @@ PostgreSQL-backed fixed-window controls.
 
 ---
 
-## 7. Establish the API contract
+## 7. Establish the API contract ✅
 
-Before porting endpoints, decide how closely Django must match Phoenix.
+**Status:** Complete. The long-term contract is documented in
+`docs/02_api_contract.md`, implemented in Django Ninja, covered by tests, and
+published through the checked-in OpenAPI schema.
 
-**Preserve the frontend-visible conventions initially:**
+The selected contract deliberately favors the long-term Django API over Phoenix
+route compatibility:
 
-- `/api/...` routes
-- Top-level `data`
-- Existing pagination structure
-- `{errors: [{code, message, field}]}`
-- UUID identifiers
-- `workspace_id` / `creator_id` exposure
-- Refresh-token rotation
-- Existing auth route names
-- Current-workspace behavior
+- `/api/v1` versioning
+- UUID workspace and resource identifiers
+- Explicit `/workspaces/{workspace_id}` scoping
+- Direct resource responses and `{items, count}` pagination
+- Problem Details-inspired `application/problem+json` errors
+- Clear auth commands and explicit token field names
+- Refresh-token rotation and logout-all
+- Current workspace as a UI preference, never implicit write scope
 
-**The starter currently differs in all of these areas:**
-
-- `/api/v1`
-- `{detail: ...}` errors
-- Integer IDs
-- Organization-slug routing
-- Different registration flow
-- Token fields named `access` and `refresh` instead of the current payload
-- Different profile fields
-
-Use the frontend's committed OpenAPI schema and the Phoenix schema as a migration checklist. Every intentional contract change should be recorded rather than occurring accidentally.
+The Phoenix API remains a behavioral reference for the frontend rewrite, but no
+legacy aliases are registered in Django. Intentional differences are recorded
+in `docs/02_api_contract.md` and `docs/api-routes.md`.
 
 ---
 

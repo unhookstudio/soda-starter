@@ -12,7 +12,7 @@ from listening_journal.api import api
 
 def login(client, user, password="testpassword"):
     response = client.post(
-        "/token/pair", json={"email": user.email, "password": password}
+        "/auth/login", json={"email": user.email, "password": password}
     )
     assert response.status_code == 200
     return response.json()
@@ -33,11 +33,13 @@ def test_deactivation_revokes_tokens_permanently_across_reactivation():
     assert user.auth_version == original_auth_version + 1
     assert session.revoked_at is not None
     assert client.get(
-        "/users/me",
-        headers={"Authorization": f"Bearer {tokens['access']}"},
+        "/auth/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
     ).status_code in {401, 403}
     assert (
-        client.post("/token/refresh", json={"refresh": tokens["refresh"]}).status_code
+        client.post(
+            "/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+        ).status_code
         == 401
     )
 
@@ -45,11 +47,13 @@ def test_deactivation_revokes_tokens_permanently_across_reactivation():
 
     assert user.is_active is True
     assert client.get(
-        "/users/me",
-        headers={"Authorization": f"Bearer {tokens['access']}"},
+        "/auth/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
     ).status_code in {401, 403}
     assert (
-        client.post("/token/refresh", json={"refresh": tokens["refresh"]}).status_code
+        client.post(
+            "/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+        ).status_code
         == 401
     )
 
@@ -63,10 +67,12 @@ def test_rejected_refresh_commits_session_revocation():
     User.objects.filter(pk=user.pk).update(is_active=False)
 
     assert client.get(
-        "/users/me",
-        headers={"Authorization": f"Bearer {tokens['access']}"},
+        "/auth/me",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
     ).status_code in {401, 403}
-    response = client.post("/token/refresh", json={"refresh": tokens["refresh"]})
+    response = client.post(
+        "/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
 
     assert response.status_code == 401
     session.refresh_from_db()

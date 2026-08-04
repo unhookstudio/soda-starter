@@ -11,12 +11,12 @@ from organizations.tests.utils import create_test_group
 def get_access_token(email, password):
     client = Client()
     response = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/json",
     )
     assert response.status_code == 200, response.content
-    return response.json()["access"]
+    return response.json()["access_token"]
 
 
 @pytest.mark.django_db
@@ -43,7 +43,7 @@ def test_org_member_can_get_signed_image_urls(monkeypatch):
 
     access = get_access_token("signed@example.com", "pw")
     response = Client().get(
-        f"/api/v1/orgs/{org.slug}/images/{image.id}/urls",
+        f"/api/v1/workspaces/{org.id}/images/{image.id}/signed-urls",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
 
@@ -84,7 +84,7 @@ def test_non_member_cannot_get_signed_image_urls(monkeypatch):
 
     access = get_access_token("outsider@example.com", "pw")
     response = Client().get(
-        f"/api/v1/orgs/{org.slug}/images/{image.id}/urls",
+        f"/api/v1/workspaces/{org.id}/images/{image.id}/signed-urls",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
 
@@ -111,12 +111,12 @@ def test_org_member_can_create_and_revoke_share_link(monkeypatch):
     access = get_access_token("share@example.com", "pw")
     client = Client()
     create_response = client.post(
-        f"/api/v1/orgs/{org.slug}/images/{image.id}/shares",
+        f"/api/v1/workspaces/{org.id}/images/{image.id}/shares",
         data={"expires_in_seconds": 600},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
-    assert create_response.status_code == 200, create_response.content
+    assert create_response.status_code == 201, create_response.content
     share_data = create_response.json()
     assert share_data["image_id"] == str(image.id)
     assert share_data["token"]
@@ -125,7 +125,7 @@ def test_org_member_can_create_and_revoke_share_link(monkeypatch):
     assert share_data["token"] not in stored_link.token_hash
 
     shared_response = client.post(
-        "/api/v1/shared/images/resolve/",
+        "/api/v1/image-shares/resolve",
         data={"token": share_data["token"]},
         content_type="application/json",
     )
@@ -136,13 +136,13 @@ def test_org_member_can_create_and_revoke_share_link(monkeypatch):
     )
 
     revoke_response = client.delete(
-        f"/api/v1/orgs/{org.slug}/images/{image.id}/shares/{share_data['id']}",
+        f"/api/v1/workspaces/{org.id}/images/{image.id}/shares/{share_data['id']}",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
-    assert revoke_response.status_code == 200, revoke_response.content
+    assert revoke_response.status_code == 204, revoke_response.content
 
     shared_response = client.post(
-        "/api/v1/shared/images/resolve/",
+        "/api/v1/image-shares/resolve",
         data={"token": share_data["token"]},
         content_type="application/json",
     )
@@ -165,7 +165,7 @@ def test_expired_share_link_cannot_get_signed_urls(monkeypatch):
     )
 
     response = Client().post(
-        "/api/v1/shared/images/resolve/",
+        "/api/v1/image-shares/resolve",
         data={"token": "expired-share-token-value"},
         content_type="application/json",
     )

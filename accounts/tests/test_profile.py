@@ -15,15 +15,13 @@ def test_get_me_success(api_client):
     )
     # Obtain JWT token (using login endpoint)
     response = api_client.post(
-        "/token/pair", json={"email": "me@example.com", "password": "testpass"}
+        "/auth/login", json={"email": "me@example.com", "password": "testpass"}
     )
     assert response.status_code == 200
-    access = response.json()["access"]
+    access = response.json()["access_token"]
 
     # Call GET /me with Authorization header
-    response = api_client.get(
-        "/users/me", headers={"Authorization": f"Bearer {access}"}
-    )
+    response = api_client.get("/auth/me", headers={"Authorization": f"Bearer {access}"})
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "me@example.com"
@@ -36,7 +34,7 @@ def test_get_me_success(api_client):
 
 @pytest.mark.django_db
 def test_get_me_unauthenticated(api_client):
-    response = api_client.get("/users/me")
+    response = api_client.get("/auth/me")
     assert response.status_code == 401
 
 
@@ -46,13 +44,13 @@ def test_patch_me_partial_update(settings, api_client):
         email="patchme@example.com", password="pw", first_name="Old", last_name="Name"
     )
     response = api_client.post(
-        "/token/pair", json={"email": "patchme@example.com", "password": "pw"}
+        "/auth/login", json={"email": "patchme@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     # Partial profile and preference update.
     response = api_client.patch(
-        "/users/me",
+        "/auth/me",
         json={"first_name": "New", "theme": "dark", "locale": "fr-FR"},
         headers=headers,
     )
@@ -73,26 +71,26 @@ def test_patch_me_invalid_data(settings, api_client):
         last_name="User",
     )
     response = api_client.post(
-        "/token/pair", json={"email": "invalidpatch@example.com", "password": "pw"}
+        "/auth/login", json={"email": "invalidpatch@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     # Profile names follow the product's 120-character limit.
     long_name = "x" * 121
     response = api_client.patch(
-        "/users/me", json={"first_name": long_name}, headers=headers
+        "/auth/me", json={"first_name": long_name}, headers=headers
     )
     assert response.status_code == 400 or response.status_code == 422
     # Unsupported field
     response = api_client.patch(
-        "/users/me", json={"not_a_field": "test"}, headers=headers
+        "/auth/me", json={"not_a_field": "test"}, headers=headers
     )
     assert response.status_code == 400 or response.status_code == 422
 
 
 @pytest.mark.django_db
 def test_patch_me_unauthenticated(api_client):
-    response = api_client.patch("/users/me", json={"first_name": "NoAuth"})
+    response = api_client.patch("/auth/me", json={"first_name": "NoAuth"})
     assert response.status_code == 401
 
 
@@ -100,9 +98,9 @@ def test_patch_me_unauthenticated(api_client):
 def test_email_change_delivery_failure(monkeypatch, settings, api_client):
     user = create_test_user(email="failmail@example.com", password="pw")
     response = api_client.post(
-        "/token/pair", json={"email": "failmail@example.com", "password": "pw"}
+        "/auth/login", json={"email": "failmail@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
 
     def fail_send_email_task(*args, **kwargs):
@@ -110,7 +108,7 @@ def test_email_change_delivery_failure(monkeypatch, settings, api_client):
 
     monkeypatch.setattr("accounts.services.enqueue_email", fail_send_email_task)
     response = api_client.patch(
-        "/auth/email",
+        "/auth/me/email",
         json={"email": "failmail2@example.com", "current_password": "pw"},
         headers=headers,
     )
@@ -128,7 +126,7 @@ def test_check_username_length_and_uniqueness(api_client, make_auth_headers):
     checker = create_test_user(email="checker@example.com", password="pw")
     headers = make_auth_headers(api_client, checker)
     # Missing username param
-    response = api_client.get("/users/check_username", headers=headers)
+    response = api_client.get("/users/username-availability", headers=headers)
     assert response.status_code == 200
     data = response.json()
     print("[TEST LOG] Missing username response:", response.status_code, data)
@@ -138,7 +136,9 @@ def test_check_username_length_and_uniqueness(api_client, make_auth_headers):
     # Too long
     long_username = "x" * 51
     response = api_client.get(
-        "/users/check_username", params={"username": long_username}, headers=headers
+        "/users/username-availability",
+        params={"username": long_username},
+        headers=headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -150,7 +150,7 @@ def test_check_username_length_and_uniqueness(api_client, make_auth_headers):
     create_test_user(email="taken@example.com", username="TestUser", password="pw")
     username = "testuser"
     response = api_client.get(
-        f"/users/check_username?username={username}", headers=headers
+        f"/users/username-availability?username={username}", headers=headers
     )
     print("[TEST LOG] Uniqueness response:", response.status_code, response.json())
     assert response.status_code == 200
@@ -161,7 +161,7 @@ def test_check_username_length_and_uniqueness(api_client, make_auth_headers):
     # Available
     username = "uniquename"
     response = api_client.get(
-        f"/users/check_username?username={username}", headers=headers
+        f"/users/username-availability?username={username}", headers=headers
     )
     print(
         "[TEST LOG] Available username response:", response.status_code, response.json()
@@ -171,7 +171,7 @@ def test_check_username_length_and_uniqueness(api_client, make_auth_headers):
 
     # Invalid characters
     response = api_client.get(
-        "/users/check_username?username=bad%20name!", headers=headers
+        "/users/username-availability?username=bad%20name!", headers=headers
     )
     assert response.status_code == 200
     data = response.json()

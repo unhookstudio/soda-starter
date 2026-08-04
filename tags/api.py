@@ -2,16 +2,15 @@ import logging
 from uuid import UUID
 
 from django.shortcuts import get_object_or_404
-from ninja import Router
+from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.pagination import LimitOffsetPagination, paginate
 
 from core.authentication import JWTAuth
-from core.utils.polymorphic import resolve_org_scoped_content_object
-from organizations.scope import resolve_org_scope
+from core.utils.polymorphic import resolve_workspace_scoped_content_object
+from organizations.scope import resolve_workspace_scope
 from tags.models import Tag
 from tags.schemas import (
-    DetailResponse,
     RemovedCountResponse,
     TagAssignment,
     TagCreate,
@@ -25,7 +24,6 @@ from tags.services import create_tag as create_tag_service
 from tags.services import delete_tag as delete_tag_service
 from tags.services import (
     rename_tag,
-    unassign_tag_from_object_by_slug,
     unassign_tags_from_object,
 )
 
@@ -41,15 +39,20 @@ TAG_OBJECT_DESCRIPTION = "Manage tags attached to a polymorphic object identifie
 
 
 @router.get(
-    "/orgs/{org_slug}/tags/",
+    "/workspaces/{workspace_id}/tags",
     response=list[TagOut],
     auth=JWTAuth(),
     summary="List organization tags",
     description="Return the paginated tag list for an organization. Supports ordering by name or id.",
 )
 @paginate(LimitOffsetPagination)
-def list_tags(request, org_slug: str, ordering: str | None = None):
-    scope = resolve_org_scope(request, org_slug)
+def list_tags(
+    request,
+    workspace_id: UUID,
+    q: str | None = None,
+    ordering: str | None = None,
+):
+    scope = resolve_workspace_scope(request, workspace_id)
     ordering_map = {
         None: "name",
         "name": "name",
@@ -59,51 +62,35 @@ def list_tags(request, org_slug: str, ordering: str | None = None):
     }
     if ordering not in ordering_map:
         raise HttpError(400, "Invalid ordering. Allowed: name, -name, id, -id")
-    return Tag.objects.filter(organization=scope.org).order_by(ordering_map[ordering])
-
-
-@router.get(
-    "/orgs/{org_slug}/tags/search/",
-    response=list[TagOut],
-    auth=JWTAuth(),
-    summary="Search organization tags",
-    description="Search tags in an organization by case-insensitive partial name.",
-)
-@paginate(LimitOffsetPagination)
-def search_tags(request, org_slug: str, q: str | None = None):
-    """
-    Search for tags in an organization by name.
-    """
-    scope = resolve_org_scope(request, org_slug)
-    queryset = Tag.objects.filter(organization=scope.org)
+    queryset = Tag.objects.filter(organization=scope.workspace)
     if q:
         queryset = queryset.filter(name__icontains=q)
-    return queryset.order_by("name")
+    return queryset.order_by(ordering_map[ordering])
 
 
 @router.get(
-    "/orgs/{org_slug}/tags/by-slug/{slug}/",
+    "/workspaces/{workspace_id}/tags/{tag_id}",
     response=TagOut,
     auth=JWTAuth(),
-    summary="Get tag by slug",
-    description="Return one tag from an organization by its slug.",
+    summary="Get tag",
+    description="Return one workspace tag by UUID.",
 )
-def get_tag_by_slug(request, org_slug: str, slug: str):
-    scope = resolve_org_scope(request, org_slug)
-    tag = get_object_or_404(Tag, slug=slug, organization=scope.org)
+def get_tag(request, workspace_id: UUID, tag_id: UUID):
+    scope = resolve_workspace_scope(request, workspace_id)
+    tag = get_object_or_404(Tag, pk=tag_id, organization=scope.workspace)
     return TagOut.model_validate(tag)
 
 
 @router.post(
-    "/orgs/{org_slug}/tags/",
-    response=TagOut,
+    "/workspaces/{workspace_id}/tags",
+    response={201: TagOut},
     auth=JWTAuth(),
     summary="Create tag",
     description="Create a tag in an organization. Tag names must be unique within that organization.",
 )
-def create_tag(request, org_slug: str, data: TagCreate):
-    scope = resolve_org_scope(request, org_slug).require_write()
-    org = scope.org
+def create_tag(request, workspace_id: UUID, data: TagCreate):
+    scope = resolve_workspace_scope(request, workspace_id).require_write()
+    org = scope.workspace
     user = scope.user
     name = data.name
     tag = create_tag_service(org, name)
@@ -114,11 +101,11 @@ def create_tag(request, org_slug: str, data: TagCreate):
         tag.id,
         tag.name,
     )
-    return tag
+    return Status(201, tag)
 
 
 @router.get(
-    "/orgs/{org_slug}/tags/{app_label}/{model}/{obj_id}/",
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/tags",
     response=list[TagOut],
     auth=JWTAuth(),
     summary="List object tags",
@@ -127,15 +114,15 @@ def create_tag(request, org_slug: str, data: TagCreate):
 @paginate(LimitOffsetPagination)
 def list_tags_for_object(
     request,
-    org_slug: str,
+    workspace_id: UUID,
     app_label: str,
     model: str,
-    obj_id: UUID,
+    object_id: UUID,
     ordering: str | None = None,
 ):
     """List tags for a specific object (paginated)."""
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     org = resolved.organization
     ct = resolved.content_type
@@ -153,7 +140,7 @@ def list_tags_for_object(
         Tag.objects.filter(
             organization=org,
             taggeditem__content_type=ct,
-            taggeditem__object_id=obj_id,
+            taggeditem__object_id=object_id,
         )
         .distinct()
         .order_by(ordering_map[ordering])
@@ -162,7 +149,7 @@ def list_tags_for_object(
 
 
 @router.post(
-    "/orgs/{org_slug}/tags/{app_label}/{model}/{obj_id}/",
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/tags",
     response=list[TagOut],
     auth=JWTAuth(),
     summary="Assign tags to object",
@@ -170,10 +157,10 @@ def list_tags_for_object(
 )
 def assign_tags(
     request,
-    org_slug: str,
+    workspace_id: UUID,
     app_label: str,
     model: str,
-    obj_id: UUID,
+    object_id: UUID,
     data: TagAssignment,
 ):
     """Assign tags by name to an object. Creates tags if missing within the organization.
@@ -181,15 +168,15 @@ def assign_tags(
     Example payload:
     ["vip", "newsletter"]
     """
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
     ct = resolved.content_type
     user = resolved.scope.user
 
-    result = assign_tags_to_object(org, ct, obj_id, data.root)
+    result = assign_tags_to_object(org, ct, object_id, data.root)
     for tag_id in result.newly_assigned_tag_ids:
         logger.info(
             "audit:tag_assign org=%s user=%s app=%s model=%s obj=%s tag_id=%s",
@@ -197,7 +184,7 @@ def assign_tags(
             getattr(user, "id", None),
             app_label,
             model,
-            obj_id,
+            object_id,
             tag_id,
         )
 
@@ -205,15 +192,15 @@ def assign_tags(
 
 
 @router.patch(
-    "/orgs/{org_slug}/tags/{tag_id}/",
+    "/workspaces/{workspace_id}/tags/{tag_id}",
     response=TagOut,
     auth=JWTAuth(),
     summary="Update tag",
     description="Rename an organization tag and regenerate its slug.",
 )
-def update_tag(request, org_slug: str, tag_id: UUID, data: TagUpdate):
-    scope = resolve_org_scope(request, org_slug).require_write()
-    org = scope.org
+def update_tag(request, workspace_id: UUID, tag_id: UUID, data: TagUpdate):
+    scope = resolve_workspace_scope(request, workspace_id).require_write()
+    org = scope.workspace
     tag = get_object_or_404(Tag, id=tag_id, organization=org)
     if data.name is not None:
         tag = rename_tag(tag, data.name)
@@ -228,15 +215,15 @@ def update_tag(request, org_slug: str, tag_id: UUID, data: TagUpdate):
 
 
 @router.delete(
-    "/orgs/{org_slug}/tags/{tag_id}/",
-    response=DetailResponse,
+    "/workspaces/{workspace_id}/tags/{tag_id}",
+    response={204: None},
     auth=JWTAuth(),
     summary="Delete tag",
     description="Delete one organization tag by id.",
 )
-def delete_tag(request, org_slug: str, tag_id: UUID):
-    scope = resolve_org_scope(request, org_slug).require_write()
-    org = scope.org
+def delete_tag(request, workspace_id: UUID, tag_id: UUID):
+    scope = resolve_workspace_scope(request, workspace_id).require_write()
+    org = scope.workspace
     user = scope.user
     tag = get_object_or_404(Tag, id=tag_id, organization=org)
     deleted_tag_id = delete_tag_service(tag)
@@ -246,11 +233,11 @@ def delete_tag(request, org_slug: str, tag_id: UUID):
         getattr(user, "id", None),
         deleted_tag_id,
     )
-    return DetailResponse(detail="deleted")
+    return Status(204, None)
 
 
 @router.delete(
-    "/orgs/{org_slug}/tags/{app_label}/{model}/{obj_id}/",
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/tags",
     response=RemovedCountResponse,
     auth=JWTAuth(),
     summary="Bulk unassign object tags",
@@ -258,10 +245,10 @@ def delete_tag(request, org_slug: str, tag_id: UUID):
 )
 def unassign_tags(
     request,
-    org_slug: str,
+    workspace_id: UUID,
     app_label: str,
     model: str,
-    obj_id: UUID,
+    object_id: UUID,
     tag_ids: list[UUID],
 ):
     """Bulk unassign tags from an object.
@@ -269,8 +256,8 @@ def unassign_tags(
     Accepts a JSON array of tag IDs. Example payload:
     [1, 4, 7]
     """
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
@@ -280,7 +267,7 @@ def unassign_tags(
     result = unassign_tags_from_object(
         organization=org,
         content_type=ct,
-        object_id=obj_id,
+        object_id=object_id,
         tag_ids=tag_ids,
     )
     if result.removed_count:
@@ -290,36 +277,41 @@ def unassign_tags(
             getattr(user, "id", None),
             app_label,
             model,
-            obj_id,
+            object_id,
             tag_ids,
         )
     return RemovedCountResponse(removed_count=result.removed_count)
 
 
 @router.delete(
-    "/orgs/{org_slug}/tags/{app_label}/{model}/{obj_id}/{slug}/",
-    response=DetailResponse,
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/tags/{tag_id}",
+    response={204: None},
     auth=JWTAuth(),
     summary="Unassign object tag by slug",
     description="Remove one tag from an object by tag slug. Missing tags are treated as already removed.",
 )
-def unassign_tag_by_slug(
-    request, org_slug: str, app_label: str, model: str, obj_id: UUID, slug: str
+def unassign_tag(
+    request,
+    workspace_id: UUID,
+    app_label: str,
+    model: str,
+    object_id: UUID,
+    tag_id: UUID,
 ):
-    """Unassign a single tag from an object by tag slug."""
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    """Idempotently unassign one tag from an object."""
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
     ct = resolved.content_type
     user = resolved.scope.user
 
-    result = unassign_tag_from_object_by_slug(
+    result = unassign_tags_from_object(
         organization=org,
         content_type=ct,
-        object_id=obj_id,
-        slug=slug,
+        object_id=object_id,
+        tag_ids=[tag_id],
     )
     if result.removed_count:
         logger.info(
@@ -328,7 +320,7 @@ def unassign_tag_by_slug(
             getattr(user, "id", None),
             app_label,
             model,
-            obj_id,
-            result.tag_id,
+            object_id,
+            tag_id,
         )
-    return DetailResponse(detail="removed")
+    return Status(204, None)

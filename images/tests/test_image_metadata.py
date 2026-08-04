@@ -47,7 +47,7 @@ def test_metadata_patch_updates_only_submitted_fields(api_client, image_context)
     )
     try:
         response = api_client.patch(
-            f"/orgs/{organization.slug}/images/{image.pk}/",
+            f"/workspaces/{organization.id}/images/{image.pk}",
             json={"title": "Updated title"},
             headers=headers,
         )
@@ -83,12 +83,12 @@ def test_metadata_patch_rejects_values_the_model_cannot_store(
     user, organization, image = image_context
 
     response = api_client.patch(
-        f"/orgs/{organization.slug}/images/{image.pk}/",
+        f"/workspaces/{organization.id}/images/{image.pk}",
         json=payload,
         headers=headers_for(user),
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     image.refresh_from_db()
     assert image.title == "Original title"
     assert image.description == "Original description"

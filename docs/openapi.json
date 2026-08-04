@@ -1,5 +1,17 @@
 {
   "components": {
+    "responses": {
+      "ProblemDetails": {
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        },
+        "description": "Request failed"
+      }
+    },
     "schemas": {
       "AvatarUrlsOut": {
         "properties": {
@@ -40,6 +52,68 @@
           "attached"
         ],
         "title": "BulkAttachOut",
+        "type": "object"
+      },
+      "BulkDeleteFailure": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reason"
+        ],
+        "title": "BulkDeleteFailure",
+        "type": "object"
+      },
+      "BulkDeleteIn": {
+        "additionalProperties": false,
+        "properties": {
+          "image_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Image Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "image_ids"
+        ],
+        "title": "BulkDeleteIn",
+        "type": "object"
+      },
+      "BulkDeleteOut": {
+        "properties": {
+          "deleted": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Deleted",
+            "type": "array"
+          },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/BulkDeleteFailure"
+            },
+            "title": "Failed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "deleted",
+          "failed"
+        ],
+        "title": "BulkDeleteOut",
         "type": "object"
       },
       "BulkDetachOut": {
@@ -242,16 +316,17 @@
             "title": "Created At",
             "type": "string"
           },
-          "creator": {
+          "creator_id": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Creator"
+            "title": "Creator Id"
           },
           "display_name": {
             "title": "Display Name",
@@ -321,10 +396,6 @@
             ],
             "title": "Notes"
           },
-          "organization": {
-            "title": "Organization",
-            "type": "string"
-          },
           "phone": {
             "anyOf": [
               {
@@ -351,6 +422,11 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
           }
         },
         "required": [
@@ -358,7 +434,7 @@
           "display_name",
           "slug",
           "has_avatar",
-          "organization",
+          "workspace_id",
           "tags",
           "created_at",
           "updated_at"
@@ -571,27 +647,19 @@
         "title": "CreateImageShareIn",
         "type": "object"
       },
-      "CustomTokenOutputSchema": {
+      "CurrentWorkspaceIn": {
+        "additionalProperties": false,
         "properties": {
-          "access": {
-            "title": "Access",
-            "type": "string"
-          },
-          "email": {
-            "title": "Email",
-            "type": "string"
-          },
-          "refresh": {
-            "title": "Refresh",
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
             "type": "string"
           }
         },
         "required": [
-          "access",
-          "refresh",
-          "email"
+          "workspace_id"
         ],
-        "title": "CustomTokenOutputSchema",
+        "title": "CurrentWorkspaceIn",
         "type": "object"
       },
       "DeleteAccountSchema": {
@@ -606,19 +674,6 @@
           "password"
         ],
         "title": "DeleteAccountSchema",
-        "type": "object"
-      },
-      "DetailResponse": {
-        "properties": {
-          "detail": {
-            "title": "Detail",
-            "type": "string"
-          }
-        },
-        "required": [
-          "detail"
-        ],
-        "title": "DetailResponse",
         "type": "object"
       },
       "EmailSchema": {
@@ -710,6 +765,18 @@
             "title": "Id",
             "type": "string"
           },
+          "requested_by_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Id"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -725,10 +792,17 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
           }
         },
         "required": [
           "id",
+          "workspace_id",
+          "requested_by_id",
           "status",
           "created_at"
         ],
@@ -770,7 +844,7 @@
             "title": "Created At",
             "type": "string"
           },
-          "creator": {
+          "creator_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -780,7 +854,7 @@
                 "type": "null"
               }
             ],
-            "title": "Creator"
+            "title": "Creator Id"
           },
           "description": {
             "anyOf": [
@@ -800,11 +874,6 @@
           "id": {
             "format": "uuid",
             "title": "Id",
-            "type": "string"
-          },
-          "organization": {
-            "format": "uuid",
-            "title": "Organization",
             "type": "string"
           },
           "title": {
@@ -831,12 +900,17 @@
                 "type": "null"
               }
             ]
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "file",
-          "organization",
+          "workspace_id",
           "created_at",
           "updated_at"
         ],
@@ -1057,13 +1131,13 @@
       "LogoutInputSchema": {
         "additionalProperties": false,
         "properties": {
-          "refresh": {
-            "title": "Refresh",
+          "refresh_token": {
+            "title": "Refresh Token",
             "type": "string"
           }
         },
         "required": [
-          "refresh"
+          "refresh_token"
         ],
         "title": "LogoutInputSchema",
         "type": "object"
@@ -1186,6 +1260,19 @@
         "title": "PasswordResetSchema",
         "type": "object"
       },
+      "PendingActionOut": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PendingActionOut",
+        "type": "object"
+      },
       "PolymorphicImageRelationOut": {
         "properties": {
           "content_type": {
@@ -1264,21 +1351,125 @@
         "title": "PolymorphicImageRelationOut",
         "type": "object"
       },
-      "ReauthenticationResponse": {
+      "ProblemDetails": {
+        "example": {
+          "code": "validation_error",
+          "detail": "One or more request values are invalid.",
+          "errors": [
+            {
+              "code": "value_error",
+              "field": "email",
+              "message": "Invalid email"
+            }
+          ],
+          "instance": "/api/v1/auth/register",
+          "request_id": "8b21d6b0d8d947bfa64791aa938fc6b0",
+          "status": 422,
+          "title": "Request validation failed",
+          "type": "urn:listening-journal:problem:validation-error"
+        },
         "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
           "detail": {
             "title": "Detail",
             "type": "string"
           },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProblemError"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Errors"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Request Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "code",
+          "instance"
+        ],
+        "title": "ProblemDetails",
+        "type": "object"
+      },
+      "ProblemError": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Field"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ProblemError",
+        "type": "object"
+      },
+      "ReauthenticationResponse": {
+        "properties": {
           "reauthentication_required": {
             "default": true,
             "title": "Reauthentication Required",
             "type": "boolean"
           }
         },
-        "required": [
-          "detail"
-        ],
         "title": "ReauthenticationResponse",
         "type": "object"
       },
@@ -1384,11 +1575,6 @@
         "title": "ResolveImageShareIn",
         "type": "object"
       },
-      "Schema": {
-        "properties": {},
-        "title": "Schema",
-        "type": "object"
-      },
       "SetCoverIn": {
         "additionalProperties": false,
         "properties": {
@@ -1447,13 +1633,13 @@
             "title": "Name",
             "type": "string"
           },
-          "organization": {
-            "format": "uuid",
-            "title": "Organization",
-            "type": "string"
-          },
           "slug": {
             "title": "Slug",
+            "type": "string"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
             "type": "string"
           }
         },
@@ -1461,7 +1647,7 @@
           "id",
           "name",
           "slug",
-          "organization"
+          "workspace_id"
         ],
         "title": "TagOut",
         "type": "object"
@@ -1541,36 +1727,46 @@
         "title": "TokenPairInputSchema",
         "type": "object"
       },
+      "TokenPairOut": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "Bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "title": "TokenPairOut",
+        "type": "object"
+      },
       "TokenRefreshInputSchema": {
         "additionalProperties": false,
         "properties": {
-          "refresh": {
-            "title": "Refresh",
+          "refresh_token": {
+            "title": "Refresh Token",
             "type": "string"
           }
         },
         "required": [
-          "refresh"
+          "refresh_token"
         ],
         "title": "TokenRefreshInputSchema",
-        "type": "object"
-      },
-      "TokenRefreshOutputSchema": {
-        "properties": {
-          "access": {
-            "title": "Access",
-            "type": "string"
-          },
-          "refresh": {
-            "title": "Refresh",
-            "type": "string"
-          }
-        },
-        "required": [
-          "access",
-          "refresh"
-        ],
-        "title": "TokenRefreshOutputSchema",
         "type": "object"
       },
       "TokenVerifyInputSchema": {
@@ -1584,24 +1780,6 @@
           "token"
         ],
         "title": "TokenVerifyInputSchema",
-        "type": "object"
-      },
-      "UnverifiedUserSchema": {
-        "properties": {
-          "detail": {
-            "title": "Detail",
-            "type": "string"
-          },
-          "email_verified": {
-            "default": false,
-            "title": "Email Verified",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "detail"
-        ],
-        "title": "UnverifiedUserSchema",
         "type": "object"
       },
       "UserProfileOut": {
@@ -1699,14 +1877,6 @@
             ],
             "title": "Notification Preferences"
           },
-          "org_name": {
-            "title": "Org Name",
-            "type": "string"
-          },
-          "org_slug": {
-            "title": "Org Slug",
-            "type": "string"
-          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -1728,8 +1898,6 @@
           "last_name",
           "username",
           "slug",
-          "org_name",
-          "org_slug",
           "location",
           "about",
           "has_avatar",
@@ -1859,6 +2027,65 @@
         ],
         "title": "UsernameUpdateSchema",
         "type": "object"
+      },
+      "WorkspaceOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "creator_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "kind",
+          "role",
+          "creator_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorkspaceOut",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1875,103 +2102,6 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/v1/auth/change-password/": {
-      "post": {
-        "operationId": "accounts_api_change_password",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangePasswordSchema"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReauthenticationResponse"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Change Password",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/auth/delete/": {
-      "delete": {
-        "operationId": "accounts_api_delete_account",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeleteAccountSchema"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Delete Account",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/auth/email": {
-      "patch": {
-        "operationId": "accounts_api_request_email_change",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EmailUpdateSchema"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Request Email Change",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
     "/api/v1/auth/email/verify": {
       "post": {
         "operationId": "accounts_api_verify_email_change",
@@ -1996,15 +2126,53 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "summary": "Verify Email Change",
         "tags": [
-          "auth"
+          "authentication"
         ]
       }
     },
-    "/api/v1/auth/logout/": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "accounts_api_obtain_token_pair",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenPairInputSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPairOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "summary": "Obtain Token Pair",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
       "post": {
         "operationId": "accounts_api_logout",
         "parameters": [],
@@ -2019,13 +2187,331 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "summary": "Logout",
         "tags": [
-          "auth"
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "operationId": "accounts_api_logout_all",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Logout All",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "delete": {
+        "operationId": "accounts_users_api_delete_account",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Delete Account",
+        "tags": [
+          "profile"
+        ]
+      },
+      "get": {
+        "operationId": "accounts_users_api_get_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Get Me",
+        "tags": [
+          "profile"
+        ]
+      },
+      "patch": {
+        "operationId": "accounts_users_api_update_me",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Update Me",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/api/v1/auth/me/avatar": {
+      "delete": {
+        "operationId": "accounts_users_api_delete_avatar",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Delete Avatar",
+        "tags": [
+          "profile"
+        ]
+      },
+      "post": {
+        "description": "Handles avatar upload: validates, deletes old, resizes, uploads, updates DB.",
+        "operationId": "accounts_users_api_upload_avatar",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "title": "File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "title": "FileParams",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUrlsOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Upload Avatar",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/api/v1/auth/me/email": {
+      "patch": {
+        "operationId": "accounts_api_request_email_change",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailUpdateSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingActionOut"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Request Email Change",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/me/password": {
+      "patch": {
+        "operationId": "accounts_api_change_password",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReauthenticationResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Change Password",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/me/username": {
+      "patch": {
+        "operationId": "accounts_username_update_username",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsernameUpdateSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Update Username",
+        "tags": [
+          "profile"
         ]
       }
     },
@@ -2054,11 +2540,14 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "summary": "Confirm Password Reset",
         "tags": [
-          "auth"
+          "authentication"
         ]
       }
     },
@@ -2078,17 +2567,62 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK"
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingActionOut"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "summary": "Request Password Reset",
         "tags": [
-          "auth"
+          "authentication"
         ]
       }
     },
-    "/api/v1/auth/register/": {
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "accounts_api_refresh_token",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRefreshInputSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPairOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "summary": "Refresh Token",
+        "tags": [
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
       "post": {
         "operationId": "accounts_api_register",
         "parameters": [],
@@ -2103,13 +2637,23 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK"
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingActionOut"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "summary": "Register",
         "tags": [
-          "auth"
+          "authentication"
         ]
       }
     },
@@ -2128,13 +2672,51 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK"
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingActionOut"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "summary": "Resend Verification",
         "tags": [
-          "auth"
+          "authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/token/verify": {
+      "post": {
+        "operationId": "accounts_api_verify_token",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenVerifyInputSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "summary": "Verify Token",
+        "tags": [
+          "authentication"
         ]
       }
     },
@@ -2154,26 +2736,112 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPairOut"
+                }
+              }
+            },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "summary": "Verify Registration",
         "tags": [
-          "auth"
+          "authentication"
         ]
       }
     },
-    "/api/v1/contacts/{contact_id}/avatar": {
+    "/api/v1/image-shares/resolve": {
+      "post": {
+        "operationId": "images_api_access_get_shared_image_signed_urls",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveImageShareIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageSignedUrlsOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "summary": "Get Shared Image Signed Urls",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/users/username-availability": {
       "get": {
-        "operationId": "contacts_api_get_contact_avatar",
+        "operationId": "accounts_users_api_check_username",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "username",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Username",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsernameCheckResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Check Username",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}/avatar": {
+      "get": {
+        "operationId": "accounts_users_api_get_user_avatar",
         "parameters": [
           {
             "in": "path",
-            "name": "contact_id",
+            "name": "user_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Contact Id",
+              "title": "User Id",
               "type": "string"
             }
           }
@@ -2188,48 +2856,9 @@
               }
             },
             "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Get Contact Avatar",
-        "tags": [
-          "contacts"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/bulk-delete/": {
-      "post": {
-        "operationId": "images_api_deletion_bulk_delete_images",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
           },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Bad Request"
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2237,33 +2866,23 @@
             "JWTAuth": []
           }
         ],
-        "summary": "Bulk Delete Images",
+        "summary": "Get User Avatar",
         "tags": [
-          "images"
+          "users"
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/bulk-upload/": {
-      "post": {
-        "operationId": "images_api_uploads_bulk_upload_images",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          }
-        ],
+    "/api/v1/workspaces": {
+      "get": {
+        "operationId": "organizations_api_list_workspaces",
+        "parameters": [],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/BulkUploadResponse"
+                    "$ref": "#/components/schemas/WorkspaceOut"
                   },
                   "title": "Response",
                   "type": "array"
@@ -2271,6 +2890,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2278,23 +2900,92 @@
             "JWTAuth": []
           }
         ],
-        "summary": "Bulk Upload Images",
+        "summary": "List Workspaces",
         "tags": [
-          "images"
+          "workspaces"
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/contacts/": {
+    "/api/v1/workspaces/current": {
+      "get": {
+        "operationId": "organizations_api_get_current_workspace",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Get Current Workspace",
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "put": {
+        "operationId": "organizations_api_set_current_workspace",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CurrentWorkspaceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Set Current Workspace",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/contacts": {
       "get": {
         "description": "List contacts with optional search and sorting.\n\nQuery Parameters:\n- search: Optional search term to filter contacts\n- sort_by: Field to sort by (display_name, first_name, last_name, email, created_at, updated_at)\n- sort_order: Sort order (asc or desc)",
         "operationId": "contacts_api_list_contacts",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -2380,6 +3071,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2397,10 +3091,11 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           }
@@ -2425,6 +3120,9 @@
               }
             },
             "description": "Created"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2438,39 +3136,37 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/contacts/{slug}/": {
+    "/api/v1/workspaces/{workspace_id}/contacts/{contact_id}": {
       "delete": {
         "operationId": "contacts_api_delete_contact",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
           {
             "in": "path",
-            "name": "slug",
+            "name": "contact_id",
             "required": true,
             "schema": {
-              "title": "Slug",
+              "format": "uuid",
+              "title": "Contact Id",
               "type": "string"
             }
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetailResponse"
-                }
-              }
-            },
-            "description": "OK"
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2488,19 +3184,21 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
           {
             "in": "path",
-            "name": "slug",
+            "name": "contact_id",
             "required": true,
             "schema": {
-              "title": "Slug",
+              "format": "uuid",
+              "title": "Contact Id",
               "type": "string"
             }
           }
@@ -2515,6 +3213,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2532,19 +3233,21 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
           {
             "in": "path",
-            "name": "slug",
+            "name": "contact_id",
             "required": true,
             "schema": {
-              "title": "Slug",
+              "format": "uuid",
+              "title": "Contact Id",
               "type": "string"
             }
           }
@@ -2569,6 +3272,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2586,19 +3292,21 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
           {
             "in": "path",
-            "name": "slug",
+            "name": "contact_id",
             "required": true,
             "schema": {
-              "title": "Slug",
+              "format": "uuid",
+              "title": "Contact Id",
               "type": "string"
             }
           }
@@ -2623,6 +3331,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2636,39 +3347,37 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/contacts/{slug}/avatar/": {
+    "/api/v1/workspaces/{workspace_id}/contacts/{contact_id}/avatar": {
       "delete": {
         "operationId": "contacts_api_delete_contact_avatar",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
           {
             "in": "path",
-            "name": "slug",
+            "name": "contact_id",
             "required": true,
             "schema": {
-              "title": "Slug",
+              "format": "uuid",
+              "title": "Contact Id",
               "type": "string"
             }
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetailResponse"
-                }
-              }
-            },
-            "description": "OK"
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2681,25 +3390,76 @@
           "contacts"
         ]
       },
+      "get": {
+        "operationId": "contacts_api_get_contact_avatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarUrlsOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Get Contact Avatar",
+        "tags": [
+          "contacts"
+        ]
+      },
       "post": {
         "description": "Upload and set avatar for a contact. Stores small and large sizes, updates avatar_path.",
         "operationId": "contacts_api_upload_contact_avatar",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
           {
             "in": "path",
-            "name": "slug",
+            "name": "contact_id",
             "required": true,
             "schema": {
-              "title": "Slug",
+              "format": "uuid",
+              "title": "Contact Id",
               "type": "string"
             }
           }
@@ -2735,6 +3495,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2748,16 +3511,17 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/exports/": {
+    "/api/v1/workspaces/{workspace_id}/exports": {
       "get": {
         "operationId": "organizations_api_export_list_exports",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           }
@@ -2776,6 +3540,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2794,10 +3561,11 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           }
@@ -2812,6 +3580,9 @@
               }
             },
             "description": "Accepted"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2826,16 +3597,17 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/exports/{job_id}/": {
+    "/api/v1/workspaces/{workspace_id}/exports/{job_id}": {
       "get": {
         "operationId": "organizations_api_export_get_export",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -2860,6 +3632,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2874,16 +3649,17 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/exports/{job_id}/retry/": {
+    "/api/v1/workspaces/{workspace_id}/exports/{job_id}/retry": {
       "post": {
         "operationId": "organizations_api_export_retry_export",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -2908,6 +3684,9 @@
               }
             },
             "description": "Accepted"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -2922,16 +3701,17 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/images/": {
+    "/api/v1/workspaces/{workspace_id}/images": {
       "get": {
         "operationId": "images_api_listing_list_images_for_org",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -2984,6 +3764,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -3001,10 +3784,11 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           }
@@ -3031,7 +3815,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3039,7 +3823,10 @@
                 }
               }
             },
-            "description": "OK"
+            "description": "Created"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -3053,16 +3840,382 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/": {
-      "get": {
-        "operationId": "images_api_listing_list_images_for_object",
+    "/api/v1/workspaces/{workspace_id}/images/bulk-delete": {
+      "post": {
+        "operationId": "images_api_deletion_bulk_delete_images",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkDeleteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeleteOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Bulk Delete Images",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/images/bulk-upload": {
+      "post": {
+        "operationId": "images_api_uploads_bulk_upload_images",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BulkUploadResponse"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Bulk Upload Images",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/images/{image_id}": {
+      "delete": {
+        "operationId": "images_api_deletion_delete_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Image Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Delete Image",
+        "tags": [
+          "images"
+        ]
+      },
+      "patch": {
+        "operationId": "images_api_metadata_edit_image_metadata",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Image Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImagePatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Edit Image Metadata",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/images/{image_id}/shares": {
+      "post": {
+        "operationId": "images_api_access_create_image_share",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Image Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateImageShareIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageShareOut"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Create Image Share",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/images/{image_id}/shares/{share_id}": {
+      "delete": {
+        "operationId": "images_api_access_revoke_image_share",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Image Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "share_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Share Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Revoke Image Share",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/images/{image_id}/signed-urls": {
+      "get": {
+        "operationId": "images_api_access_get_image_signed_urls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Image Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageSignedUrlsOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Get Image Signed Urls",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/cover-image": {
+      "delete": {
+        "operationId": "images_api_ordering_unset_cover_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -3086,11 +4239,143 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Unset Cover Image",
+        "tags": [
+          "images"
+        ]
+      },
+      "put": {
+        "operationId": "images_api_ordering_set_cover_image",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "app_label",
+            "required": true,
+            "schema": {
+              "title": "App Label",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "model",
+            "required": true,
+            "schema": {
+              "title": "Model",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Object Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCoverIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Set Cover Image",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images": {
+      "get": {
+        "operationId": "images_api_listing_list_images_for_object",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "app_label",
+            "required": true,
+            "schema": {
+              "title": "App Label",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "model",
+            "required": true,
+            "schema": {
+              "title": "Model",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Object Id",
               "type": "string"
             }
           },
@@ -3143,6 +4428,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -3160,10 +4448,11 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -3187,11 +4476,11 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           }
@@ -3220,6 +4509,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -3233,16 +4525,17 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/bulk_attach/": {
+    "/api/v1/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images/bulk-attach": {
       "post": {
         "operationId": "images_api_relations_bulk_attach_images",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -3266,11 +4559,11 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           }
@@ -3295,6 +4588,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -3308,16 +4604,17 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/bulk_detach/": {
+    "/api/v1/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images/bulk-detach": {
       "post": {
         "operationId": "images_api_relations_bulk_detach_images",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -3341,11 +4638,11 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           }
@@ -3370,6 +4667,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -3383,16 +4683,17 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/reorder": {
-      "post": {
+    "/api/v1/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images/order": {
+      "put": {
         "operationId": "images_api_ordering_reorder_images",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -3416,11 +4717,11 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           }
@@ -3436,15 +4737,11 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetailResponse"
-                }
-              }
-            },
-            "description": "OK"
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -3458,156 +4755,17 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/set_cover": {
-      "post": {
-        "operationId": "images_api_ordering_set_cover_image",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "app_label",
-            "required": true,
-            "schema": {
-              "title": "App Label",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "model",
-            "required": true,
-            "schema": {
-              "title": "Model",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "obj_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Obj Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetCoverIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetailResponse"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Set Cover Image",
-        "tags": [
-          "images"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/unset_cover": {
-      "post": {
-        "operationId": "images_api_ordering_unset_cover_image",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "app_label",
-            "required": true,
-            "schema": {
-              "title": "App Label",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "model",
-            "required": true,
-            "schema": {
-              "title": "Model",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "obj_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Obj Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetailResponse"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Unset Cover Image",
-        "tags": [
-          "images"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/{image_id}/": {
+    "/api/v1/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images/{image_id}": {
       "delete": {
         "operationId": "images_api_relations_remove_image_from_object",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -3631,11 +4789,11 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           },
@@ -3653,6 +4811,9 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -3666,530 +4827,18 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/images/{image_id}/": {
-      "delete": {
-        "operationId": "images_api_deletion_delete_image",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "image_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Image Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Delete Image",
-        "tags": [
-          "images"
-        ]
-      },
-      "patch": {
-        "operationId": "images_api_metadata_edit_image_metadata",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "image_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Image Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ImagePatchIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImageOut"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Bad Request"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Edit Image Metadata",
-        "tags": [
-          "images"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/images/{image_id}/shares": {
-      "post": {
-        "operationId": "images_api_access_create_image_share",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "image_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Image Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateImageShareIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImageShareOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Create Image Share",
-        "tags": [
-          "images"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/images/{image_id}/shares/{share_id}": {
-      "delete": {
-        "operationId": "images_api_access_revoke_image_share",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "image_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Image Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "share_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Share Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetailResponse"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Revoke Image Share",
-        "tags": [
-          "images"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/images/{image_id}/urls": {
-      "get": {
-        "operationId": "images_api_access_get_image_signed_urls",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "image_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Image Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImageSignedUrlsOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Get Image Signed Urls",
-        "tags": [
-          "images"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/tags/": {
-      "get": {
-        "description": "Return the paginated tag list for an organization. Supports ordering by name or id.",
-        "operationId": "tags_api_list_tags",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "ordering",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Ordering"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedTagOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "List organization tags",
-        "tags": [
-          "tags"
-        ]
-      },
-      "post": {
-        "description": "Create a tag in an organization. Tag names must be unique within that organization.",
-        "operationId": "tags_api_create_tag",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TagCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TagOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Create tag",
-        "tags": [
-          "tags"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/tags/by-slug/{slug}/": {
-      "get": {
-        "description": "Return one tag from an organization by its slug.",
-        "operationId": "tags_api_get_tag_by_slug",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "slug",
-            "required": true,
-            "schema": {
-              "title": "Slug",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TagOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Get tag by slug",
-        "tags": [
-          "tags"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/tags/search/": {
-      "get": {
-        "description": "Search tags in an organization by case-insensitive partial name.",
-        "operationId": "tags_api_search_tags",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org_slug",
-            "required": true,
-            "schema": {
-              "title": "Org Slug",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "q",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Q"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedTagOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Search organization tags",
-        "tags": [
-          "tags"
-        ]
-      }
-    },
-    "/api/v1/orgs/{org_slug}/tags/{app_label}/{model}/{obj_id}/": {
+    "/api/v1/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/tags": {
       "delete": {
         "description": "Remove multiple tag ids from an organization-scoped object.",
         "operationId": "tags_api_unassign_tags",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -4213,11 +4862,11 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           }
@@ -4247,6 +4896,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -4265,10 +4917,11 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -4292,11 +4945,11 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           },
@@ -4349,6 +5002,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -4367,10 +5023,11 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -4394,11 +5051,11 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           }
@@ -4427,6 +5084,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -4440,17 +5100,18 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/tags/{app_label}/{model}/{obj_id}/{slug}/": {
+    "/api/v1/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/tags/{tag_id}": {
       "delete": {
         "description": "Remove one tag from an object by tag slug. Missing tags are treated as already removed.",
-        "operationId": "tags_api_unassign_tag_by_slug",
+        "operationId": "tags_api_unassign_tag",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -4474,34 +5135,31 @@
           },
           {
             "in": "path",
-            "name": "obj_id",
+            "name": "object_id",
             "required": true,
             "schema": {
               "format": "uuid",
-              "title": "Obj Id",
+              "title": "Object Id",
               "type": "string"
             }
           },
           {
             "in": "path",
-            "name": "slug",
+            "name": "tag_id",
             "required": true,
             "schema": {
-              "title": "Slug",
+              "format": "uuid",
+              "title": "Tag Id",
               "type": "string"
             }
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetailResponse"
-                }
-              }
-            },
-            "description": "OK"
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -4515,17 +5173,207 @@
         ]
       }
     },
-    "/api/v1/orgs/{org_slug}/tags/{tag_id}/": {
+    "/api/v1/workspaces/{workspace_id}/tags": {
+      "get": {
+        "description": "Return the paginated tag list for an organization. Supports ordering by name or id.",
+        "operationId": "tags_api_list_tags",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ordering",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ordering"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedTagOut"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "List organization tags",
+        "tags": [
+          "tags"
+        ]
+      },
+      "post": {
+        "description": "Create a tag in an organization. Tag names must be unique within that organization.",
+        "operationId": "tags_api_create_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagOut"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Create tag",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/tags/{tag_id}": {
       "delete": {
         "description": "Delete one organization tag by id.",
         "operationId": "tags_api_delete_tag",
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tag_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tag Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
+          }
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ],
+        "summary": "Delete tag",
+        "tags": [
+          "tags"
+        ]
+      },
+      "get": {
+        "description": "Return one workspace tag by UUID.",
+        "operationId": "tags_api_get_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -4545,11 +5393,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DetailResponse"
+                  "$ref": "#/components/schemas/TagOut"
                 }
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -4557,7 +5408,7 @@
             "JWTAuth": []
           }
         ],
-        "summary": "Delete tag",
+        "summary": "Get tag",
         "tags": [
           "tags"
         ]
@@ -4568,10 +5419,11 @@
         "parameters": [
           {
             "in": "path",
-            "name": "org_slug",
+            "name": "workspace_id",
             "required": true,
             "schema": {
-              "title": "Org Slug",
+              "format": "uuid",
+              "title": "Workspace Id",
               "type": "string"
             }
           },
@@ -4606,6 +5458,9 @@
               }
             },
             "description": "OK"
+          },
+          "default": {
+            "$ref": "#/components/responses/ProblemDetails"
           }
         },
         "security": [
@@ -4616,385 +5471,6 @@
         "summary": "Update tag",
         "tags": [
           "tags"
-        ]
-      }
-    },
-    "/api/v1/shared/images/resolve/": {
-      "post": {
-        "operationId": "images_api_access_get_shared_image_signed_urls",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResolveImageShareIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImageSignedUrlsOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "summary": "Get Shared Image Signed Urls",
-        "tags": [
-          "images"
-        ]
-      }
-    },
-    "/api/v1/token/pair": {
-      "post": {
-        "operationId": "accounts_api_obtain_token_pair",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TokenPairInputSchema"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomTokenOutputSchema"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UnverifiedUserSchema"
-                }
-              }
-            },
-            "description": "Forbidden"
-          }
-        },
-        "summary": "Obtain Token Pair",
-        "tags": [
-          "token"
-        ]
-      }
-    },
-    "/api/v1/token/refresh": {
-      "post": {
-        "operationId": "accounts_api_refresh_token",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TokenRefreshInputSchema"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenRefreshOutputSchema"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "summary": "Refresh Token",
-        "tags": [
-          "token"
-        ]
-      }
-    },
-    "/api/v1/token/verify": {
-      "post": {
-        "operationId": "accounts_api_verify_token",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TokenVerifyInputSchema"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Schema"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "summary": "Verify Token",
-        "tags": [
-          "token"
-        ]
-      }
-    },
-    "/api/v1/users/avatar": {
-      "delete": {
-        "operationId": "accounts_users_api_delete_avatar",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Delete Avatar",
-        "tags": [
-          "users"
-        ]
-      },
-      "post": {
-        "description": "Handles avatar upload: validates, deletes old, resizes, uploads, updates DB.",
-        "operationId": "accounts_users_api_upload_avatar",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "properties": {
-                  "file": {
-                    "format": "binary",
-                    "title": "File",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "file"
-                ],
-                "title": "FileParams",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AvatarUrlsOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Upload Avatar",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/api/v1/users/check_username": {
-      "get": {
-        "operationId": "accounts_users_api_check_username",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "username",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Username",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UsernameCheckResponse"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Check Username",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/api/v1/users/me": {
-      "get": {
-        "operationId": "accounts_users_api_get_me",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserProfileOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Get Me",
-        "tags": [
-          "users"
-        ]
-      },
-      "patch": {
-        "operationId": "accounts_users_api_update_me",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserProfileUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserProfileOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Update Me",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/api/v1/users/username": {
-      "patch": {
-        "operationId": "accounts_username_update_username",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UsernameUpdateSchema"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserProfileOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Update Username",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/api/v1/users/{slug}/avatar": {
-      "get": {
-        "operationId": "accounts_users_api_get_user_avatar",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "slug",
-            "required": true,
-            "schema": {
-              "title": "Slug",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AvatarUrlsOut"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "JWTAuth": []
-          }
-        ],
-        "summary": "Get User Avatar",
-        "tags": [
-          "users"
         ]
       }
     }

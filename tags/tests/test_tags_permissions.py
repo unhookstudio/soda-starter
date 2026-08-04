@@ -4,6 +4,7 @@ from django.test import Client
 
 from organizations.models import Membership, Organization
 from organizations.tests.utils import create_test_group
+from tags.models import Tag
 
 User = get_user_model()
 
@@ -11,18 +12,18 @@ User = get_user_model()
 def get_access_token(email, password):
     client = Client()
     resp = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/json",
     )
-    if resp.status_code != 200 or "access" not in resp.json():
+    if resp.status_code != 200 or "access_token" not in resp.json():
         resp2 = client.post(
-            "/api/v1/token/pair",
+            "/api/v1/auth/login",
             data={"email": email, "password": password},
             content_type="application/x-www-form-urlencoded",
         )
-        return resp2.json().get("access")
-    return resp.json().get("access")
+        return resp2.json().get("access_token")
+    return resp.json().get("access_token")
 
 
 @pytest.mark.django_db
@@ -35,7 +36,7 @@ def test_list_tags_requires_membership():
     client = Client()
     access = get_access_token("tags1@example.com", "pw")
     resp = client.get(
-        f"/api/v1/orgs/{org.slug}/tags/", HTTP_AUTHORIZATION=f"Bearer {access}"
+        f"/api/v1/workspaces/{org.id}/tags", HTTP_AUTHORIZATION=f"Bearer {access}"
     )
     assert resp.status_code == 404
 
@@ -56,7 +57,7 @@ def test_assign_tags_wrong_object_org_is_hidden():
     model = "organization"
     object_id = org2.id  # object belongs to different org than route
 
-    url = f"/api/v1/orgs/{org1.slug}/tags/{app_label}/{model}/{object_id}/"
+    url = f"/api/v1/workspaces/{org1.id}/objects/{app_label}/{model}/{object_id}/tags"
     resp = client.post(
         url,
         data=["vip"],
@@ -67,7 +68,7 @@ def test_assign_tags_wrong_object_org_is_hidden():
 
 
 @pytest.mark.django_db
-def test_unassign_by_slug_wrong_object_is_hidden():
+def test_unassign_by_id_wrong_object_is_hidden():
     org1 = Organization.objects.create(name="Org1", slug="org1tags")
     org2 = create_test_group(name="Org2", slug="org2tags")
     user = User.objects.create_user(
@@ -80,6 +81,7 @@ def test_unassign_by_slug_wrong_object_is_hidden():
     app_label = "organizations"
     model = "organization"
     # try to unassign from an object in a different org
-    url = f"/api/v1/orgs/{org1.slug}/tags/{app_label}/{model}/{org2.id}/some-slug/"
+    tag = Tag.objects.create(organization=org1, name="Some tag", slug="some-tag")
+    url = f"/api/v1/workspaces/{org1.id}/objects/{app_label}/{model}/{org2.id}/tags/{tag.id}"
     resp = client.delete(url, HTTP_AUTHORIZATION=f"Bearer {access}")
     assert resp.status_code == 404

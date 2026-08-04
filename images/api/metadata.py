@@ -7,17 +7,19 @@ from images.api.common import router
 from images.models import Image
 from images.schemas import ImageOut, ImagePatchIn
 from images.serializers import serialize_image
-from organizations.scope import resolve_org_scope
+from organizations.scope import resolve_workspace_scope
 
 
 @router.patch(
-    "/orgs/{org_slug}/images/{image_id}/",
-    response={200: ImageOut, 400: dict},
+    "/workspaces/{workspace_id}/images/{image_id}",
+    response=ImageOut,
     auth=JWTAuth(),
 )
-def edit_image_metadata(request, org_slug: str, image_id: UUID, data: ImagePatchIn):
-    scope = resolve_org_scope(request, org_slug).require_write()
-    image = get_object_or_404(Image, id=image_id, organization=scope.org)
+def edit_image_metadata(
+    request, workspace_id: UUID, image_id: UUID, data: ImagePatchIn
+):
+    scope = resolve_workspace_scope(request, workspace_id).require_write()
+    image = get_object_or_404(Image, id=image_id, organization=scope.workspace)
     payload = data.model_dump(exclude_unset=True)
     for field in ("title", "description", "alt_text"):
         if field in payload:

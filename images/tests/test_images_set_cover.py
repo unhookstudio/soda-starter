@@ -25,19 +25,19 @@ def create_test_image_file(color=(10, 20, 30), size=(64, 64), name="t.png"):
 def get_access_token(email, password):
     client = Client()
     resp = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/json",
     )
-    if resp.status_code == 200 and "access" in resp.json():
-        return resp.json().get("access")
+    if resp.status_code == 200 and "access_token" in resp.json():
+        return resp.json().get("access_token")
     # fallback
     resp2 = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/x-www-form-urlencoded",
     )
-    return resp2.json().get("access")
+    return resp2.json().get("access_token")
 
 
 @pytest.mark.django_db
@@ -64,7 +64,9 @@ def test_set_cover_toggles_without_reorder():
     obj_id = org.id
 
     # Attach all images
-    attach_url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/"
+    attach_url = (
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/images"
+    )
     resp = client.post(
         attach_url,
         data={"image_ids": [i.id for i in imgs]},
@@ -84,16 +86,16 @@ def test_set_cover_toggles_without_reorder():
 
     # Set cover to the last image
     set_cover_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/set_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
     target_id = imgs[-1].id
-    resp = client.post(
+    resp = client.put(
         set_cover_url,
         data={"image_id": target_id},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {token}",
     )
-    assert resp.status_code == 200, resp.content
+    assert resp.status_code == 204, resp.content
 
     after = list(
         PolymorphicImageRelation.objects.filter(
@@ -129,7 +131,9 @@ def test_set_cover_idempotent():
     model = "organization"
     obj_id = org.id
 
-    attach_url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/"
+    attach_url = (
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/images"
+    )
     client.post(
         attach_url,
         data={"image_ids": [i.id for i in imgs]},
@@ -138,27 +142,27 @@ def test_set_cover_idempotent():
     )
 
     set_cover_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/set_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
     target_id = imgs[0].id
 
     # First call
-    r1 = client.post(
+    r1 = client.put(
         set_cover_url,
         data={"image_id": target_id},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {token}",
     )
-    assert r1.status_code == 200
+    assert r1.status_code == 204
 
     # Second call (idempotent)
-    r2 = client.post(
+    r2 = client.put(
         set_cover_url,
         data={"image_id": target_id},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {token}",
     )
-    assert r2.status_code == 200
+    assert r2.status_code == 204
 
     ct = ContentType.objects.get(app_label=app_label, model=model)
     rels = list(
@@ -191,9 +195,9 @@ def test_set_cover_requires_attachment():
 
     # Do NOT attach, try to set cover directly -> 404
     set_cover_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/set_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
-    resp = client.post(
+    resp = client.put(
         set_cover_url,
         data={"image_id": img.id},
         content_type="application/json",
@@ -224,9 +228,9 @@ def test_set_cover_wrong_org_image_404():
     obj_id = org1.id
 
     set_cover_url = (
-        f"/api/v1/orgs/{org1.slug}/images/{app_label}/{model}/{obj_id}/set_cover"
+        f"/api/v1/workspaces/{org1.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
-    resp = client.post(
+    resp = client.put(
         set_cover_url,
         data={"image_id": foreign_img.id},
         content_type="application/json",
@@ -254,9 +258,9 @@ def test_set_cover_auth_required():
 
     # Try without auth token
     set_cover_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/set_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
-    resp = Client().post(
+    resp = Client().put(
         set_cover_url,
         data={"image_id": img.id},
         content_type="application/json",

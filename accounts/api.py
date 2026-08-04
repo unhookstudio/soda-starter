@@ -28,26 +28,24 @@ from accounts.operations import (
 )
 from accounts.schemas import (
     ChangePasswordSchema,
-    CustomTokenOutputSchema,
-    DeleteAccountSchema,
     EmailSchema,
     EmailUpdateSchema,
     LogoutInputSchema,
     PasswordResetRequestSchema,
     PasswordResetSchema,
+    PendingActionOut,
     ReauthenticationResponse,
     RegisterSchema,
     RegistrationVerificationSchema,
     TokenInputSchema,
     TokenPairInputSchema,
+    TokenPairOut,
     TokenRefreshInputSchema,
-    TokenRefreshOutputSchema,
-    UnverifiedUserSchema,
 )
 from accounts.services import (
     authenticate_for_token,
-    delete_user_account,
     issue_token_pair,
+    revoke_all_sessions,
     revoke_session_from_refresh,
     rotate_token_pair,
     send_templated_email,
@@ -64,9 +62,9 @@ from accounts.throttles import (
     verification_throttle,
 )
 from accounts.validation import normalize_and_validate_email
+from core.api_errors import ApiError
 from core.authentication import JWTAuth
 from core.utils.auth_utils import get_request_user
-from organizations.services import ActiveOwnerRequiredError
 
 EMAIL_VERIFICATION_EXPIRY_HOURS = 12
 EMAIL_CHANGE_TOKEN_EXPIRY_HOURS = 24
@@ -78,15 +76,22 @@ PASSWORD_RESET_RESPONSE_DETAIL = (
     "If the email exists, a password reset link has been sent."
 )
 
-token_router = Router(tags=["token"])
-auth_router = Router()
+auth_router = Router(tags=["authentication"])
 logger = logging.getLogger(__name__)
 audit_logger = logging.getLogger("audit")
 
 
-@token_router.post(
-    "/pair",
-    response={200: CustomTokenOutputSchema, 403: UnverifiedUserSchema},
+def token_response(access: str, refresh: str) -> TokenPairOut:
+    return TokenPairOut(
+        access_token=access,
+        refresh_token=refresh,
+        expires_in=int(settings.NINJA_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()),
+    )
+
+
+@auth_router.post(
+    "/login",
+    response=TokenPairOut,
     throttle=[login_throttle],
 )
 def obtain_token_pair(request, data: TokenPairInputSchema):
@@ -99,36 +104,35 @@ def obtain_token_pair(request, data: TokenPairInputSchema):
         )
         raise
     if not is_verified:
-        return Status(
+        raise ApiError(
             403,
-            UnverifiedUserSchema(
-                detail="Please verify your email address before logging in.",
-                email_verified=False,
-            ),
+            "email_not_verified",
+            "Verify the email address before logging in.",
         )
 
     access, refresh = issue_token_pair(user, device_name=data.device_name or "")
     audit_logger.info("audit:login_succeeded user=%s", user.pk)
-    return CustomTokenOutputSchema(access=access, refresh=refresh, email=user.email)
+    return token_response(access, refresh)
 
 
-@token_router.post(
+@auth_router.post(
     "/refresh",
-    response={200: TokenRefreshOutputSchema},
+    response=TokenPairOut,
     throttle=[refresh_throttle],
 )
 def refresh_token(request, data: TokenRefreshInputSchema):
-    access, refresh = rotate_token_pair(data.refresh)
-    return TokenRefreshOutputSchema(access=access, refresh=refresh)
+    access, refresh = rotate_token_pair(data.refresh_token)
+    return token_response(access, refresh)
 
 
-@token_router.post(
-    "/verify",
-    response={200: TokenVerifyInputSchema.get_response_schema()},
+@auth_router.post(
+    "/token/verify",
+    response={204: None},
     throttle=[token_verify_throttle],
 )
 def verify_token(request, data: TokenVerifyInputSchema):
-    return data.to_response_schema()
+    data.to_response_schema()
+    return Status(204, None)
 
 
 def send_verification_email(email: str, token: str) -> None:
@@ -166,15 +170,19 @@ def create_pending_registration(email: str) -> None:
         raise
 
 
-@auth_router.post("/register/", throttle=[register_throttle])
+@auth_router.post(
+    "/register",
+    response={202: PendingActionOut},
+    throttle=[register_throttle],
+)
 def register(request, data: RegisterSchema):
     email = data.email
     create_pending_registration(email)
 
-    return {"detail": REGISTRATION_RESPONSE_DETAIL}
+    return Status(202, PendingActionOut(status="verification_pending"))
 
 
-@auth_router.post("/verify-registration")
+@auth_router.post("/verify-registration", response=TokenPairOut)
 def verify_registration(request, data: RegistrationVerificationSchema):
     try:
         user = confirm_registration(raw_token=data.token, password=data.password)
@@ -184,46 +192,39 @@ def verify_registration(request, data: RegistrationVerificationSchema):
         raise HttpError(400, str(exc)) from exc
 
     access, refresh = issue_token_pair(user, device_name=data.device_name or "")
-    return {
-        "detail": "Email verified successfully.",
-        "access": access,
-        "refresh": refresh,
-    }
+    return token_response(access, refresh)
 
 
-@auth_router.post("/resend-verification", throttle=[verification_throttle])
+@auth_router.post(
+    "/resend-verification",
+    response={202: PendingActionOut},
+    throttle=[verification_throttle],
+)
 def resend_verification(request, data: EmailSchema):
     try:
         email = normalize_and_validate_email(data.email)
     except ValueError:
-        return {"detail": REGISTRATION_RESPONSE_DETAIL}
+        return Status(202, PendingActionOut(status="verification_pending"))
     create_pending_registration(email)
 
-    return {"detail": REGISTRATION_RESPONSE_DETAIL}
+    return Status(202, PendingActionOut(status="verification_pending"))
 
 
-@auth_router.post("/logout/", throttle=[logout_throttle])
+@auth_router.post("/logout", response={204: None}, throttle=[logout_throttle])
 def logout(request, data: LogoutInputSchema):
-    revoke_session_from_refresh(data.refresh)
+    revoke_session_from_refresh(data.refresh_token)
     audit_logger.info("audit:session_logged_out")
-    return {"detail": "Logged out successfully."}
+    return Status(204, None)
 
 
-@auth_router.delete("/delete/", auth=JWTAuth())
-def delete_account(request, data: DeleteAccountSchema):
-    user = get_request_user(request)
-    if not user.check_password(data.password):
-        raise HttpError(400, "Password is incorrect")
-    try:
-        delete_user_account(user)
-    except ActiveOwnerRequiredError as exc:
-        raise HttpError(409, str(exc)) from exc
-    return {"detail": "Account deleted successfully."}
+@auth_router.post("/logout-all", response={204: None}, auth=JWTAuth())
+def logout_all(request):
+    revoke_all_sessions(get_request_user(request))
+    audit_logger.info("audit:all_sessions_logged_out")
+    return Status(204, None)
 
 
-@auth_router.post(
-    "/change-password/", auth=JWTAuth(), response=ReauthenticationResponse
-)
+@auth_router.patch("/me/password", auth=JWTAuth(), response=ReauthenticationResponse)
 def change_password(request, data: ChangePasswordSchema):
     user = get_request_user(request)
     try:
@@ -234,10 +235,15 @@ def change_password(request, data: ChangePasswordSchema):
         )
     except AccountOperationError as exc:
         raise HttpError(400, str(exc)) from exc
-    return ReauthenticationResponse(detail="Password changed successfully.")
+    return ReauthenticationResponse()
 
 
-@auth_router.patch("/email", auth=JWTAuth(), throttle=[email_change_throttle])
+@auth_router.patch(
+    "/me/email",
+    response={202: PendingActionOut},
+    auth=JWTAuth(),
+    throttle=[email_change_throttle],
+)
 def request_email_change(request, data: EmailUpdateSchema):
     user = get_request_user(request)
     try:
@@ -285,7 +291,7 @@ def request_email_change(request, data: EmailUpdateSchema):
         )
         raise HttpError(500, "Failed to send verification email.") from exc
     audit_logger.info("audit:email_change_requested user=%s", delivery.user_id)
-    return {"detail": "Verification email sent. Please check your new address."}
+    return Status(202, PendingActionOut(status="verification_pending"))
 
 
 @auth_router.post("/email/verify", response=ReauthenticationResponse)
@@ -310,11 +316,12 @@ def verify_email_change(request, data: TokenInputSchema):
                 "accounts:email_change_completion_notice_failed user=%s",
                 result.user_id,
             )
-    return ReauthenticationResponse(detail="Email address updated successfully.")
+    return ReauthenticationResponse()
 
 
 @auth_router.post(
     "/password-reset/request",
+    response={202: PendingActionOut},
     throttle=[password_reset_request_throttle],
 )
 def request_password_reset(request, data: PasswordResetRequestSchema):
@@ -324,13 +331,13 @@ def request_password_reset(request, data: PasswordResetRequestSchema):
     try:
         email = normalize_and_validate_email(data.email)
     except ValueError:
-        return {"detail": PASSWORD_RESET_RESPONSE_DETAIL}
+        return Status(202, PendingActionOut(status="reset_pending"))
     delivery = rotate_password_reset(
         email=email,
         expiry_hours=PASSWORD_RESET_TOKEN_EXPIRY_HOURS,
     )
     if delivery is None:
-        return {"detail": PASSWORD_RESET_RESPONSE_DETAIL}
+        return Status(202, PendingActionOut(status="reset_pending"))
     reset_link = f"{settings.FRONTEND_URL}/reset-password#token={delivery.raw_token}"
     try:
         send_templated_email(
@@ -346,7 +353,7 @@ def request_password_reset(request, data: PasswordResetRequestSchema):
         logger.exception(
             "accounts:password_reset_email_failed user=%s", delivery.user_id
         )
-    return {"detail": PASSWORD_RESET_RESPONSE_DETAIL}
+    return Status(202, PendingActionOut(status="reset_pending"))
 
 
 @auth_router.post(
@@ -365,4 +372,4 @@ def confirm_password_reset(request, data: PasswordResetSchema):
         )
     except AccountOperationError as exc:
         raise HttpError(400, str(exc)) from exc
-    return ReauthenticationResponse(detail="Password has been reset successfully.")
+    return ReauthenticationResponse()

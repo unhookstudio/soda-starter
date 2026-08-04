@@ -20,17 +20,17 @@ def test_invalid_upload_error_shape():
     client = Client()
     # get token
     resp = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": "err@example.com", "password": "pw"},
         content_type="application/json",
     )
-    access = resp.json()["access"]
+    access = resp.json()["access_token"]
 
     bad_file = SimpleUploadedFile(
         "notimage.txt", b"not an image", content_type="text/plain"
     )
     response = client.post(
-        f"/api/v1/orgs/{org.slug}/images/",
+        f"/api/v1/workspaces/{org.id}/images",
         {"file": bad_file},
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )

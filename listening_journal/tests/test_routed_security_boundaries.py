@@ -74,40 +74,37 @@ def test_route_families_hide_unknown_and_inaccessible_tenants(
     organization, _contact, _owner, _admin, _member, outsider = routed_tenant
     headers = headers_for(outsider)
     path_templates = [
-        "/orgs/{slug}/contacts/",
-        "/orgs/{slug}/tags/",
-        "/orgs/{slug}/images/",
-        "/orgs/{slug}/exports/",
+        "/workspaces/{workspace_id}/contacts",
+        "/workspaces/{workspace_id}/tags",
+        "/workspaces/{workspace_id}/images",
+        "/workspaces/{workspace_id}/exports",
     ]
 
     for template in path_templates:
         inaccessible = api_client.get(
-            template.format(slug=organization.slug), headers=headers
+            template.format(workspace_id=organization.id), headers=headers
         )
         unknown = api_client.get(
-            template.format(slug="does-not-exist"), headers=headers
+            template.format(workspace_id=uuid.uuid4()), headers=headers
         )
         assert inaccessible.status_code == unknown.status_code == 404
-        assert (
-            inaccessible.json()
-            == unknown.json()
-            == {"detail": "Organization not found"}
-        )
+        assert inaccessible.json()["code"] == "workspace_not_found"
+        assert unknown.json()["code"] == "workspace_not_found"
 
 
 @pytest.mark.django_db
 def test_routed_roles_enforce_member_and_admin_boundaries(api_client, routed_tenant):
     organization, _contact, owner, admin, member, _outsider = routed_tenant
     ordinary_paths = [
-        f"/orgs/{organization.slug}/contacts/",
-        f"/orgs/{organization.slug}/tags/",
-        f"/orgs/{organization.slug}/images/",
+        f"/workspaces/{organization.id}/contacts",
+        f"/workspaces/{organization.id}/tags",
+        f"/workspaces/{organization.id}/images",
     ]
     for user in (owner, admin, member):
         for path in ordinary_paths:
             assert api_client.get(path, headers=headers_for(user)).status_code == 200
 
-    export_path = f"/orgs/{organization.slug}/exports/"
+    export_path = f"/workspaces/{organization.id}/exports"
     assert api_client.get(export_path, headers=headers_for(owner)).status_code == 200
     assert api_client.get(export_path, headers=headers_for(admin)).status_code == 200
     member_response = api_client.get(export_path, headers=headers_for(member))
@@ -116,7 +113,7 @@ def test_routed_roles_enforce_member_and_admin_boundaries(api_client, routed_ten
 
 @pytest.mark.django_db
 def test_protected_route_rejects_the_full_invalid_jwt_matrix(api_client):
-    path = "/users/me"
+    path = "/auth/me"
     user = User.objects.create_user(email="jwt-matrix@example.com", password="pw")
     access, _refresh = issue_token_pair(user)
 
@@ -165,7 +162,7 @@ def test_platform_admin_cross_tenant_flow_is_routed_and_audited(api_client):
         password="pw",
         is_staff=True,
     )
-    list_path = f"/orgs/{organization.slug}/contacts/"
+    list_path = f"/workspaces/{organization.id}/contacts"
 
     with patch("organizations.scope.audit_logger.info") as audit_info:
         listed = api_client.get(list_path, headers=headers_for(superuser))
@@ -179,18 +176,20 @@ def test_platform_admin_cross_tenant_flow_is_routed_and_audited(api_client):
     assert created.status_code == 201
     assert audit_info.call_count == 2
     assert all(
-        call.kwargs["extra"]["event"] == "platform_admin_tenant_access"
-        and call.kwargs["extra"]["org"] == organization.pk
-        and call.kwargs["extra"]["user"] == superuser.pk
+        call.kwargs["extra"]["event"] == "platform_admin_workspace_access"
+        and call.kwargs["extra"]["workspace"] == str(organization.pk)
+        and call.kwargs["extra"]["user"] == str(superuser.pk)
         for call in audit_info.call_args_list
     )
 
     inaccessible = api_client.get(list_path, headers=headers_for(staff))
     unknown = api_client.get(
-        "/orgs/unknown-platform-scope/contacts/", headers=headers_for(staff)
+        f"/workspaces/{uuid.uuid4()}/contacts", headers=headers_for(staff)
     )
     assert inaccessible.status_code == unknown.status_code == 404
-    assert inaccessible.json() == unknown.json() == {"detail": "Organization not found"}
+    assert (
+        inaccessible.json()["code"] == unknown.json()["code"] == "workspace_not_found"
+    )
 
 
 @pytest.mark.django_db
@@ -203,8 +202,8 @@ def test_json_idempotency_runs_through_router(api_client, routed_tenant):
         organization=organization, creator=owner, file="private/images/second.webp"
     )
     path = (
-        f"/orgs/{organization.slug}/images/contacts/contact/{contact.pk}/"
-        "bulk_attach/"
+        f"/workspaces/{organization.id}/objects/contacts/contact/{contact.pk}/images"
+        "/bulk-attach"
     )
     headers = {**headers_for(owner), "Idempotency-Key": "routed-json-key"}
 
@@ -220,7 +219,7 @@ def test_json_idempotency_runs_through_router(api_client, routed_tenant):
 @pytest.mark.django_db
 def test_multipart_idempotency_hashes_real_file_bytes(api_client, routed_tenant):
     organization, _contact, owner, _admin, _member, _outsider = routed_tenant
-    path = f"/orgs/{organization.slug}/bulk-upload/"
+    path = f"/workspaces/{organization.id}/images/bulk-upload"
     headers = {**headers_for(owner), "Idempotency-Key": "routed-file-key"}
 
     initial = api_client.post(
@@ -252,7 +251,7 @@ def test_distinct_idempotency_keys_execute_bulk_uploads_independently(
     api_client, routed_tenant
 ):
     organization, _contact, owner, _admin, _member, _outsider = routed_tenant
-    path = f"/orgs/{organization.slug}/bulk-upload/"
+    path = f"/workspaces/{organization.id}/images/bulk-upload"
 
     first = api_client.post(
         path,
@@ -279,22 +278,24 @@ def test_bulk_detach_replay_runs_through_router(api_client, routed_tenant):
         creator=owner,
         file="private/images/detach.webp",
     )
-    base_path = f"/orgs/{organization.slug}/images/contacts/contact/{contact.pk}"
+    base_path = (
+        f"/workspaces/{organization.id}/objects/contacts/contact/{contact.pk}/images"
+    )
     auth_headers = headers_for(owner)
     attached = api_client.post(
-        f"{base_path}/bulk_attach/",
+        f"{base_path}/bulk-attach",
         json={"image_ids": [image.pk]},
         headers=auth_headers,
     )
     headers = {**auth_headers, "Idempotency-Key": "routed-detach-key"}
 
     initial = api_client.post(
-        f"{base_path}/bulk_detach/",
+        f"{base_path}/bulk-detach",
         json={"image_ids": [image.pk]},
         headers=headers,
     )
     replay = api_client.post(
-        f"{base_path}/bulk_detach/",
+        f"{base_path}/bulk-detach",
         json={"image_ids": [image.pk]},
         headers=headers,
     )
@@ -319,7 +320,7 @@ def test_bulk_delete_success_and_partial_failure_replay_through_router(
         creator=owner,
         file="private/images/delete-partial.webp",
     )
-    path = f"/orgs/{organization.slug}/bulk-delete/"
+    path = f"/workspaces/{organization.id}/images/bulk-delete"
     auth_headers = headers_for(owner)
 
     success_headers = {
@@ -327,12 +328,12 @@ def test_bulk_delete_success_and_partial_failure_replay_through_router(
         "Idempotency-Key": "routed-delete-success",
     }
     initial_success = api_client.post(
-        path, json={"ids": [success.pk]}, headers=success_headers
+        path, json={"image_ids": [success.pk]}, headers=success_headers
     )
     replayed_success = api_client.post(
-        path, json={"ids": [success.pk]}, headers=success_headers
+        path, json={"image_ids": [success.pk]}, headers=success_headers
     )
-    assert initial_success.status_code == replayed_success.status_code == 204
+    assert initial_success.status_code == replayed_success.status_code == 200
     assert not Image.objects.filter(pk=success.pk).exists()
 
     missing_id = uuid.uuid4()
@@ -342,16 +343,16 @@ def test_bulk_delete_success_and_partial_failure_replay_through_router(
     }
     initial_partial = api_client.post(
         path,
-        json={"ids": [partial.pk, missing_id]},
+        json={"image_ids": [partial.pk, missing_id]},
         headers=partial_headers,
     )
     replayed_partial = api_client.post(
         path,
-        json={"ids": [partial.pk, missing_id]},
+        json={"image_ids": [partial.pk, missing_id]},
         headers=partial_headers,
     )
 
-    assert initial_partial.status_code == replayed_partial.status_code == 400
+    assert initial_partial.status_code == replayed_partial.status_code == 200
     assert initial_partial.json() == replayed_partial.json()
     assert initial_partial.json()["deleted"] == [str(partial.pk)]
     assert initial_partial.json()["failed"] == [

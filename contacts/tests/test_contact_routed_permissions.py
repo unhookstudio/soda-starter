@@ -39,8 +39,8 @@ def test_outsider_cannot_use_any_contact_read_or_mutation_route(api_client):
         avatar_path="avatars/contacts/protected.webp",
     )
     headers = headers_for(outsider)
-    collection = f"/orgs/{organization.slug}/contacts/"
-    detail = f"{collection}{contact.slug}/"
+    collection = f"/workspaces/{organization.id}/contacts"
+    detail = f"{collection}/{contact.id}"
 
     responses = [
         api_client.get(detail, headers=headers),
@@ -60,17 +60,18 @@ def test_outsider_cannot_use_any_contact_read_or_mutation_route(api_client):
             headers=headers,
         ),
         api_client.post(
-            f"{detail}avatar/",
+            f"{detail}/avatar",
             data={},
             FILES={"file": avatar_file()},
             headers=headers,
         ),
-        api_client.delete(f"{detail}avatar/", headers=headers),
+        api_client.delete(f"{detail}/avatar", headers=headers),
         api_client.delete(detail, headers=headers),
     ]
 
-    assert [(response.status_code, response.json()) for response in responses] == [
-        (404, {"detail": "Organization not found"})
+    assert [response.status_code for response in responses] == [404] * len(responses)
+    assert [response.json()["code"] for response in responses] == [
+        "workspace_not_found"
     ] * len(responses)
     assert Contact.objects.filter(pk=contact.pk).exists()
     contact.refresh_from_db()

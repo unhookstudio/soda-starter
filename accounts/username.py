@@ -22,7 +22,7 @@ router = Router()
 User = get_user_model()
 
 
-@router.patch("/username", response=UserProfileOut, auth=JWTAuth())
+@router.patch("/me/username", response=UserProfileOut, auth=JWTAuth())
 @transaction.atomic
 def update_username(request, data: UsernameUpdateSchema):
     user = get_request_user(request)

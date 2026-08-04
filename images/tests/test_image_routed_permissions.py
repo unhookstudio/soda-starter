@@ -45,49 +45,50 @@ def test_outsider_cannot_use_any_image_read_or_mutation_route(api_client):
         file="private/images/protected.webp",
     )
     headers = headers_for(outsider)
-    org_base = f"/orgs/{organization.slug}"
-    object_base = f"{org_base}/images/contacts/contact/{contact.pk}"
+    org_base = f"/workspaces/{organization.id}"
+    object_base = f"{org_base}/objects/contacts/contact/{contact.pk}/images"
 
     responses = [
-        api_client.get(f"{org_base}/images/", headers=headers),
-        api_client.get(f"{object_base}/", headers=headers),
+        api_client.get(f"{org_base}/images", headers=headers),
+        api_client.get(object_base, headers=headers),
         api_client.post(
-            f"{org_base}/bulk-upload/",
+            f"{org_base}/images/bulk-upload",
             data={},
             FILES={"files": [image_file()]},
             headers=headers,
         ),
         api_client.post(
-            f"{object_base}/",
+            object_base,
             json={"image_ids": [image.pk]},
             headers=headers,
         ),
         api_client.post(
-            f"{object_base}/bulk_attach/",
+            f"{object_base}/bulk-attach",
             json={"image_ids": [image.pk]},
             headers=headers,
         ),
         api_client.post(
-            f"{object_base}/bulk_detach/",
+            f"{object_base}/bulk-detach",
             json={"image_ids": [image.pk]},
             headers=headers,
         ),
-        api_client.delete(f"{object_base}/{image.pk}/", headers=headers),
+        api_client.delete(f"{object_base}/{image.pk}", headers=headers),
         api_client.patch(
-            f"{org_base}/images/{image.pk}/",
+            f"{org_base}/images/{image.pk}",
             json={"title": "Forbidden"},
             headers=headers,
         ),
-        api_client.delete(f"{org_base}/images/{image.pk}/", headers=headers),
+        api_client.delete(f"{org_base}/images/{image.pk}", headers=headers),
         api_client.post(
-            f"{org_base}/bulk-delete/",
-            json={"ids": [image.pk]},
+            f"{org_base}/images/bulk-delete",
+            json={"image_ids": [image.pk]},
             headers=headers,
         ),
     ]
 
-    assert [(response.status_code, response.json()) for response in responses] == [
-        (404, {"detail": "Organization not found"})
+    assert [response.status_code for response in responses] == [404] * len(responses)
+    assert [response.json()["code"] for response in responses] == [
+        "workspace_not_found"
     ] * len(responses)
     image.refresh_from_db()
     assert image.title == ""
@@ -107,9 +108,9 @@ def test_object_routes_hide_targets_from_another_organization(api_client):
         organization=hidden_org,
         creator=user,
     )
-    path = f"/orgs/{visible_org.slug}/images/contacts/contact/{hidden_contact.pk}/"
+    path = f"/workspaces/{visible_org.id}/objects/contacts/contact/{hidden_contact.pk}/images"
 
     response = api_client.get(path, headers=headers_for(user))
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Object not found"}
+    assert response.json()["code"] == "not_found"

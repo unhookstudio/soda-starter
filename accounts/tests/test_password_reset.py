@@ -19,9 +19,8 @@ def test_password_reset_request_valid_email(settings, api_client):
     data = {"email": "user@example.com"}
     with patch("accounts.services.enqueue_email") as mock_send_email:
         response = api_client.post(url, json=data)
-        assert response.status_code == 200
-        assert "detail" in response.json()
-        assert "reset link has been sent" in response.json()["detail"]
+        assert response.status_code == 202
+        assert response.json() == {"status": "reset_pending"}
         # A PendingPasswordReset should be created
         assert PendingPasswordReset.objects.filter(user=user).exists()
         assert len(PendingPasswordReset.objects.get(user=user).token) == 64
@@ -34,8 +33,8 @@ def test_password_reset_request_invalid_email_format(api_client):
     url = "/auth/password-reset/request"
     data = {"email": "not-an-email"}
     response = api_client.post(url, json=data)
-    assert response.status_code == 200
-    assert "reset link has been sent" in response.json()["detail"]
+    assert response.status_code == 202
+    assert response.json() == {"status": "reset_pending"}
     assert not PendingPasswordReset.objects.exists()
 
 
@@ -44,8 +43,8 @@ def test_password_reset_request_nonexistent_email(api_client):
     url = "/auth/password-reset/request"
     data = {"email": "nobody@example.com"}
     response = api_client.post(url, json=data)
-    assert response.status_code == 200
-    assert "reset link has been sent" in response.json()["detail"]
+    assert response.status_code == 202
+    assert response.json() == {"status": "reset_pending"}
 
 
 @pytest.mark.django_db
@@ -59,7 +58,7 @@ def test_password_reset_request_deletes_previous(settings, api_client):
     data = {"email": "user2@example.com"}
     with patch("accounts.services.enqueue_email"):
         response = api_client.post(url, json=data)
-    assert response.status_code == 200
+    assert response.status_code == 202
     # Only one PendingPasswordReset should exist now
     assert PendingPasswordReset.objects.filter(user=user).count() == 1
 
@@ -75,16 +74,15 @@ def test_password_reset_request_email_send_failure(monkeypatch, api_client):
 
     monkeypatch.setattr("accounts.services.enqueue_email", fail_send_email_task)
     response = api_client.post(url, json=data)
-    # Should still return 200 and generic message
-    assert response.status_code == 200
-    assert "reset link has been sent" in response.json()["detail"]
+    assert response.status_code == 202
+    assert response.json() == {"status": "reset_pending"}
 
 
 @pytest.mark.django_db
 def test_password_reset_confirm_success(api_client):
     user = create_test_user(email="resetme@example.com", password="oldpassword")
     login = api_client.post(
-        "/token/pair",
+        "/auth/login",
         json={"email": user.email, "password": "oldpassword"},
     ).json()
     # Create a valid PendingPasswordReset
@@ -103,7 +101,6 @@ def test_password_reset_confirm_success(api_client):
     data = {"token": token, "new_password": "newpass123"}
     response = api_client.post(url, json=data)
     assert response.status_code == 200
-    assert "Password has been reset successfully" in response.json()["detail"]
     assert response.json()["reauthentication_required"] is True
     # Password should be changed
     user.refresh_from_db()
@@ -112,14 +109,14 @@ def test_password_reset_confirm_success(api_client):
     assert not PendingPasswordReset.objects.filter(token=hash_token(token)).exists()
     assert (
         api_client.post(
-            "/token/refresh",
-            json={"refresh": login["refresh"]},
+            "/auth/refresh",
+            json={"refresh_token": login["refresh_token"]},
         ).status_code
         == 401
     )
     assert api_client.get(
-        "/users/me",
-        headers={"Authorization": f"Bearer {login['access']}"},
+        "/auth/me",
+        headers={"Authorization": f"Bearer {login['access_token']}"},
     ).status_code in {401, 403}
 
 

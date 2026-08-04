@@ -24,19 +24,19 @@ def create_test_image_file(color=(120, 30, 60), size=(64, 64), name="t2.png"):
 def get_access_token(email, password):
     client = Client()
     resp = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/json",
     )
-    if resp.status_code == 200 and "access" in resp.json():
-        return resp.json().get("access")
+    if resp.status_code == 200 and "access_token" in resp.json():
+        return resp.json().get("access_token")
     # fallback
     resp2 = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/x-www-form-urlencoded",
     )
-    return resp2.json().get("access")
+    return resp2.json().get("access_token")
 
 
 @pytest.mark.django_db
@@ -63,7 +63,9 @@ def test_unset_cover_clears_flag_without_reorder():
     obj_id = org.id
 
     # Attach
-    attach_url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/"
+    attach_url = (
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/images"
+    )
     client.post(
         attach_url,
         data={"image_ids": [i.id for i in imgs]},
@@ -73,9 +75,9 @@ def test_unset_cover_clears_flag_without_reorder():
 
     # Set a cover first
     set_cover_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/set_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
-    client.post(
+    client.put(
         set_cover_url,
         data={"image_id": imgs[1].id},
         content_type="application/json",
@@ -92,12 +94,10 @@ def test_unset_cover_clears_flag_without_reorder():
     initial_order = [r.image_id for r in before]
 
     unset_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/unset_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
-    resp = client.post(
-        unset_url, content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {token}"
-    )
-    assert resp.status_code == 200
+    resp = client.delete(unset_url, HTTP_AUTHORIZATION=f"Bearer {token}")
+    assert resp.status_code == 204
 
     after = list(
         PolymorphicImageRelation.objects.filter(
@@ -130,7 +130,9 @@ def test_unset_cover_idempotent():
     model = "organization"
     obj_id = org.id
 
-    attach_url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/"
+    attach_url = (
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/images"
+    )
     client.post(
         attach_url,
         data={"image_ids": [i.id for i in imgs]},
@@ -139,9 +141,9 @@ def test_unset_cover_idempotent():
     )
 
     set_cover_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/set_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
-    client.post(
+    client.put(
         set_cover_url,
         data={"image_id": imgs[0].id},
         content_type="application/json",
@@ -149,16 +151,12 @@ def test_unset_cover_idempotent():
     )
 
     unset_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/unset_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
-    r1 = client.post(
-        unset_url, content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {token}"
-    )
-    assert r1.status_code == 200
-    r2 = client.post(
-        unset_url, content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {token}"
-    )
-    assert r2.status_code == 200
+    r1 = client.delete(unset_url, HTTP_AUTHORIZATION=f"Bearer {token}")
+    assert r1.status_code == 204
+    r2 = client.delete(unset_url, HTTP_AUTHORIZATION=f"Bearer {token}")
+    assert r2.status_code == 204
 
     ct = ContentType.objects.get(app_label=app_label, model=model)
     rels = list(
@@ -189,7 +187,7 @@ def test_unset_cover_auth_required():
     )
 
     unset_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/unset_cover"
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/cover-image"
     )
-    resp = Client().post(unset_url, content_type="application/json")
+    resp = Client().delete(unset_url)
     assert resp.status_code in (401, 403)

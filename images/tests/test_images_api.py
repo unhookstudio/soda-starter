@@ -31,23 +31,23 @@ def get_access_token(email, password):
     client = Client()
     # Try both data and json, log the response for debugging
     resp = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/json",
     )
-    if resp.status_code != 200 or "access" not in resp.json():
+    if resp.status_code != 200 or "access_token" not in resp.json():
         print("Token endpoint response (json):", resp.status_code, resp.content)
         # Try as form-urlencoded fallback
         resp2 = client.post(
-            "/api/v1/token/pair",
+            "/api/v1/auth/login",
             data={"email": email, "password": password},
             content_type="application/x-www-form-urlencoded",
         )
         print("Token endpoint response (form):", resp2.status_code, resp2.content)
         data = resp2.json()
-        return data.get("access")
+        return data.get("access_token")
     data = resp.json()
-    return data.get("access")
+    return data.get("access_token")
 
 
 @pytest.mark.django_db
@@ -76,7 +76,7 @@ def test_list_images_for_org():
     client = Client()
     access = get_access_token("imgtest@example.com", "pw")
     assert access, "Failed to get access token. Check credentials and token endpoint."
-    url = f"/api/v1/orgs/{org.slug}/images/"
+    url = f"/api/v1/workspaces/{org.id}/images"
     response = client.get(url, HTTP_AUTHORIZATION=f"Bearer {access}")
     assert response.status_code == 200
     data = response.json()
@@ -98,11 +98,11 @@ def test_upload_image():
     assert access, "Failed to get access token. Check credentials and token endpoint."
     file = create_test_image_file(name="upload.png")
     response = client.post(
-        f"/api/v1/orgs/{org.slug}/images/",
+        f"/api/v1/workspaces/{org.id}/images",
         {"file": file},
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
-    assert response.status_code == 200, response.content
+    assert response.status_code == 201, response.content
     data = response.json()
     assert "id" in data
     assert data["file"].endswith(".png") or data["file"].endswith(".webp")
@@ -121,7 +121,7 @@ def test_bulk_upload_images():
     files = [create_test_image_file(name=f"bulk{i}.png") for i in range(3)]
     files_dict = {"files": files}
     response = client.post(
-        f"/api/v1/orgs/{org.slug}/bulk-upload/",
+        f"/api/v1/workspaces/{org.id}/images/bulk-upload",
         files_dict,
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
@@ -148,7 +148,7 @@ def test_delete_image():
     access = get_access_token("delete@example.com", "pw")
     assert access, "Failed to get access token. Check credentials and token endpoint."
     response = client.delete(
-        f"/api/v1/orgs/{org.slug}/images/{img.id}/",
+        f"/api/v1/workspaces/{org.id}/images/{img.id}",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
     assert response.status_code == 204
@@ -175,12 +175,16 @@ def test_bulk_delete_images():
     assert access, "Failed to get access token. Check credentials and token endpoint."
     ids = [img.id for img in imgs]
     response = client.post(
-        f"/api/v1/orgs/{org.slug}/bulk-delete/",
-        {"ids": ids},
+        f"/api/v1/workspaces/{org.id}/images/bulk-delete",
+        {"image_ids": ids},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
-    assert response.status_code == 204, response.content
+    assert response.status_code == 200, response.content
+    assert response.json() == {
+        "deleted": [str(image_id) for image_id in ids],
+        "failed": [],
+    }
     for img_id in ids:
         assert not Image.objects.filter(id=img_id).exists()
 
@@ -202,15 +206,14 @@ def test_bulk_delete_images_reports_missing_ids():
     access = get_access_token("bulkdelpartial@example.com", "pw")
 
     response = client.post(
-        f"/api/v1/orgs/{org.slug}/bulk-delete/",
-        {"ids": [img.id, missing_id]},
+        f"/api/v1/workspaces/{org.id}/images/bulk-delete",
+        {"image_ids": [img.id, missing_id]},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
 
-    assert response.status_code == 400, response.content
+    assert response.status_code == 200, response.content
     data = response.json()
-    assert data["detail"] == "Some images could not be deleted"
     assert data["deleted"] == [str(img.id)]
     assert data["failed"] == [{"id": str(missing_id), "reason": "not found"}]
     assert not Image.objects.filter(id=img.id).exists()
@@ -228,15 +231,14 @@ def test_bulk_delete_images_reports_no_deletions():
     access = get_access_token("bulkdelnone@example.com", "pw")
 
     response = client.post(
-        f"/api/v1/orgs/{org.slug}/bulk-delete/",
-        {"ids": [missing_id]},
+        f"/api/v1/workspaces/{org.id}/images/bulk-delete",
+        {"image_ids": [missing_id]},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
 
-    assert response.status_code == 400, response.content
+    assert response.status_code == 200, response.content
     data = response.json()
-    assert data["detail"] == "No images were deleted"
     assert data["deleted"] == []
     assert data["failed"] == [{"id": str(missing_id), "reason": "not found"}]
 
@@ -263,7 +265,9 @@ def test_attach_and_detach_image():
     assert access, "Failed to get access token. Check credentials and token endpoint."
 
     # Attach via polymorphic endpoint
-    attach_url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{object_id}/"
+    attach_url = (
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{object_id}/images"
+    )
     response = client.post(
         attach_url,
         data={"image_ids": [img.id]},
@@ -273,9 +277,7 @@ def test_attach_and_detach_image():
     assert response.status_code == 200, response.content
 
     # Detach via DELETE (204 No Content)
-    detach_url = (
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{object_id}/{img.id}/"
-    )
+    detach_url = f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{object_id}/images/{img.id}"
     response = client.delete(detach_url, HTTP_AUTHORIZATION=f"Bearer {access}")
     assert response.status_code == 204, response.content
 
@@ -303,7 +305,7 @@ def test_list_images_for_object():
 
     client = Client()
     access = get_access_token("objuser@example.com", "pw")
-    url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{object_id}/"
+    url = f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{object_id}/images"
     response = client.get(url, HTTP_AUTHORIZATION=f"Bearer {access}")
     assert response.status_code == 200
     data = response.json()
@@ -315,7 +317,7 @@ def test_list_images_for_object():
     org2 = create_test_group(name="OtherOrg", slug="otherorg")
     object_id2 = org2.id
     response = client.get(
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{object_id2}/",
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{object_id2}/images",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
     assert response.status_code == 404
@@ -323,7 +325,7 @@ def test_list_images_for_object():
     # 404 if object does not exist
     missing_object_id = uuid.uuid4()
     response = client.get(
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{missing_object_id}/",
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{missing_object_id}/images",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
     assert response.status_code == 404
@@ -341,15 +343,15 @@ def test_unauthorized_access():
     )
     # No login_client here
     client = Client()
-    url = f"/api/v1/orgs/{org.slug}/images/"
+    url = f"/api/v1/workspaces/{org.id}/images"
     response = client.get(url)
     assert response.status_code in (401, 403)
     response = client.post(
-        f"/api/v1/orgs/{org.slug}/images/",
+        f"/api/v1/workspaces/{org.id}/images",
         files={"file": create_test_image_file(name="fail.png")},
     )
     assert response.status_code in (401, 403)
-    response = client.delete(f"/api/v1/orgs/{org.slug}/images/{img.id}/")
+    response = client.delete(f"/api/v1/workspaces/{org.id}/images/{img.id}")
     assert response.status_code in (401, 403)
 
 
@@ -367,7 +369,7 @@ def test_upload_invalid_file():
         "notimage.txt", b"not an image", content_type="text/plain"
     )
     response = client.post(
-        f"/api/v1/orgs/{org.slug}/images/",
+        f"/api/v1/workspaces/{org.id}/images",
         {"file": bad_file},
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
@@ -392,7 +394,7 @@ def test_attach_images_to_object():
     client = Client()
     access = get_access_token("attach@example.com", "pw")
     assert access, "Failed to get access token. Check credentials and token endpoint."
-    url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{object_id}/"
+    url = f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{object_id}/images"
     response = client.post(
         url,
         data={"image_ids": [img.id]},
@@ -443,7 +445,7 @@ def test_remove_image_from_object():
     client = Client()
     access = get_access_token("remove@example.com", "pw")
     assert access, "Failed to get access token. Check credentials and token endpoint."
-    url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{object_id}/{img.id}/"
+    url = f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{object_id}/images/{img.id}"
     response = client.delete(url, HTTP_AUTHORIZATION=f"Bearer {access}")
     assert response.status_code == 200 or response.status_code == 204
     # Relation should be gone

@@ -25,7 +25,7 @@ def request_for(user, *, body: bytes, key: str = "request-key"):
         headers={"Idempotency-Key": key},
         META={},
         method="POST",
-        path="/api/v1/orgs/example/bulk-delete/",
+        path="/api/v1/workspaces/00000000-0000-0000-0000-000000000000/images/bulk-delete",
         body=body,
         content_type="application/json",
         FILES=SimpleNamespace(getlist=lambda _field: []),

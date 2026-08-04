@@ -2,7 +2,7 @@ import uuid
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from ninja import File, Router, UploadedFile
+from ninja import File, Router, Status, UploadedFile
 from ninja.errors import HttpError
 
 from accounts.models import User
@@ -14,17 +14,25 @@ from core.utils.image import InvalidImageContent, resize_avatar_images
 from core.utils.storage import delete_storage_keys, upload_to_storage
 from core.utils.uploads import UploadTooLarge, read_uploaded_file_bounded
 from organizations.models import Organization
+from organizations.services import ActiveOwnerRequiredError
 
-from .schemas import UsernameCheckResponse, UserProfileOut, UserProfileUpdate
+from .schemas import (
+    DeleteAccountSchema,
+    UsernameCheckResponse,
+    UserProfileOut,
+    UserProfileUpdate,
+)
 from .serializers import serialize_user_profile
+from .services import delete_user_account
 from .throttles import username_check_throttle
 from .username import router as username_router
 from .username_validation import validate_username_value
 
 # You can add more user/profile endpoints here as needed
 users_router = Router()
+profile_router = Router()
 
-users_router.add_router("/", username_router, tags=["users"])
+profile_router.add_router("", username_router, tags=["profile"])
 
 
 def serialize_profile_with_current_org(user: User) -> UserProfileOut:
@@ -42,7 +50,7 @@ def serialize_profile_with_current_org(user: User) -> UserProfileOut:
     return serialize_user_profile(user, org)
 
 
-@users_router.post("/avatar", response=AvatarUrlsOut, auth=JWTAuth())
+@profile_router.post("/me/avatar", response=AvatarUrlsOut, auth=JWTAuth())
 def upload_avatar(request, file: UploadedFile = File(...)):
     """
     Handles avatar upload: validates, deletes old, resizes, uploads, updates DB.
@@ -85,7 +93,7 @@ def upload_avatar(request, file: UploadedFile = File(...)):
     return signed_urls
 
 
-@users_router.delete("/avatar", auth=JWTAuth())
+@profile_router.delete("/me/avatar", response={204: None}, auth=JWTAuth())
 def delete_avatar(request):
     user = get_request_user(request)
     old_avatar_path = user.avatar_path
@@ -94,24 +102,24 @@ def delete_avatar(request):
         user.save(update_fields=["avatar_path", "updated_at"])
         if old_avatar_path:
             schedule_avatar_file_deletion(old_avatar_path)
-    return {"detail": "Avatar deleted."}
+    return Status(204, None)
 
 
-@users_router.get("/{slug}/avatar", response=AvatarUrlsOut, auth=JWTAuth())
-def get_user_avatar(request, slug: str):
-    user = get_object_or_404(User, slug=slug, is_active=True)
+@users_router.get("/{user_id}/avatar", response=AvatarUrlsOut, auth=JWTAuth())
+def get_user_avatar(request, user_id: uuid.UUID):
+    user = get_object_or_404(User, pk=user_id, is_active=True)
     if not user.avatar_path:
         raise HttpError(404, "Avatar not found.")
     return sign_avatar_urls(user.avatar_path)
 
 
-@users_router.get("/me", response=UserProfileOut, auth=JWTAuth())
+@profile_router.get("/me", response=UserProfileOut, auth=JWTAuth())
 def get_me(request):
     user = get_request_user(request)
     return serialize_profile_with_current_org(user)
 
 
-@users_router.patch("/me", response=UserProfileOut, auth=JWTAuth())
+@profile_router.patch("/me", response=UserProfileOut, auth=JWTAuth())
 def update_me(request, data: UserProfileUpdate):
     user = get_request_user(request)
     for field, value in data.model_dump(exclude_unset=True).items():
@@ -120,8 +128,20 @@ def update_me(request, data: UserProfileUpdate):
     return serialize_profile_with_current_org(user)
 
 
+@profile_router.delete("/me", response={204: None}, auth=JWTAuth())
+def delete_account(request, data: DeleteAccountSchema):
+    user = get_request_user(request)
+    if not user.check_password(data.password):
+        raise HttpError(400, "Password is incorrect")
+    try:
+        delete_user_account(user)
+    except ActiveOwnerRequiredError as exc:
+        raise HttpError(409, str(exc)) from exc
+    return Status(204, None)
+
+
 @users_router.get(
-    "/check_username",
+    "/username-availability",
     response=UsernameCheckResponse,
     auth=JWTAuth(),
     throttle=[username_check_throttle],

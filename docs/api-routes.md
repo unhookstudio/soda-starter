@@ -4,37 +4,40 @@ The generated [OpenAPI contract](openapi.json) is authoritative. CI regenerates
 it and fails on drift. Interactive documentation is mounted at `/api/v1/docs`;
 API operations are versioned below `/api/v1`.
 
+The design rationale and compatibility policy live in
+[02_api_contract.md](02_api_contract.md).
+
 ## Conventions
 
-- Organization-owned resources use `/orgs/{org_slug}/<resource>/...`.
-- A resource belonging to another tenant is treated as not found.
-- Collection GET routes use limit/offset pagination where declared in OpenAPI.
-- JSON validation errors use `detail` plus sanitized `errors`; application
-  errors use `detail`. Unhandled errors include a request ID, never internals.
-- Conflicting uniqueness writes return `409`; invalid input returns `400`.
-- Breaking contract changes require a new API version and regenerated OpenAPI.
-- Credential responses that revoke existing sessions include
-  `reauthentication_required: true`; clients must discard both token types.
+- Workspace-owned resources use `/workspaces/{workspace_id}/...` with UUIDs.
+- A resource belonging to another workspace is treated as not found.
+- Successful resources are returned directly. Paginated collections use
+  `{items, count}` with limit/offset pagination.
+- Errors use `application/problem+json` and include `type`, `title`, `status`,
+  `detail`, `code`, and `instance`; request IDs and field errors are included
+  when available.
+- Schema validation failures return `422`, uniqueness conflicts return `409`,
+  and successful commands without a response body return `204`.
+- Breaking changes require a new API version and regenerated OpenAPI.
 
 ## Route groups
 
 | Purpose | Routes |
 | --- | --- |
-| Sessions | `POST /token/pair`, `/token/refresh`, `/token/verify` |
-| Account lifecycle | `POST /auth/register/` (email only), `/auth/verify-registration` (token plus password), `/auth/logout/`, `/auth/password-reset/request`, `/auth/password-reset/confirm`; `PATCH /auth/email` requires the current password |
-| Current user | `GET/PATCH /users/me`, `PATCH /users/username`, `POST/DELETE /users/avatar`, authenticated `GET /users/{slug}/avatar` |
-| Contacts | `GET/POST /orgs/{org_slug}/contacts/`, CRUD below `/contacts/{slug}/`, scoped avatar upload/delete, authenticated `GET /contacts/{id}/avatar` |
-| Tags | list/create/search below `/orgs/{org_slug}/tags/`; assignment accepts up to 50 normalized names and targets are allowlisted |
-| Images | media library and relation operations below `/orgs/{org_slug}/images/` |
-| Public shares | `POST /shared/images/resolve/` with the raw token in the body |
-| Exports | `GET/POST /orgs/{org_slug}/exports/`, status/download and retry by job UUID |
+| Sessions | `POST /auth/login`, `/auth/refresh`, `/auth/token/verify`, `/auth/logout`, `/auth/logout-all` |
+| Account lifecycle | Registration, verification, email-change, password-reset, password-change, and `DELETE /auth/me` |
+| Current user | `GET/PATCH /auth/me`, avatar and username below `/auth/me`; public user avatars below `/users/{user_id}/avatar` |
+| Workspaces | `GET /workspaces`, `GET/PUT /workspaces/current` |
+| Contacts | Collection and UUID CRUD below `/workspaces/{workspace_id}/contacts`; avatars remain in the same scope |
+| Tags | Collection CRUD below `/workspaces/{workspace_id}/tags`; object assignments below `/workspaces/{workspace_id}/objects/.../tags` |
+| Images | Media library below `/workspaces/{workspace_id}/images`; relations and cover images below `/workspaces/{workspace_id}/objects/...` |
+| Public shares | `POST /image-shares/resolve` with the raw token in the body |
+| Exports | Collection, status, download, and retry below `/workspaces/{workspace_id}/exports` |
 
-All paths in the table are relative to `/api/v1`. Authenticated routes accept
-`Authorization: Bearer <access-token>`.
-
-Access and refresh tokens are returned in JSON. The SvelteKit server stores them
-in its own browser-facing HttpOnly cookies and sends bearer access tokens to this
-API; see [security.md](security.md).
+Authenticated routes accept `Authorization: Bearer <access-token>`. Token
+responses use `access_token`, `refresh_token`, `token_type`, and `expires_in`.
+The SvelteKit server stores those tokens in its own browser-facing HttpOnly
+cookies; see [security.md](security.md).
 
 Export creation returns a job, not a URL. Poll the authenticated job route; a
 ready response contains a short-lived signed download URL. Export files expire

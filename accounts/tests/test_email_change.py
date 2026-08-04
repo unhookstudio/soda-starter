@@ -18,17 +18,17 @@ def test_request_email_change_success(settings, api_client, monkeypatch):
     monkeypatch.setattr("accounts.services.enqueue_email", _send_email_synchronously)
     user = create_test_user(email="old@example.com", password="pw")
     resp = api_client.post(
-        "/token/pair", json={"email": "old@example.com", "password": "pw"}
+        "/auth/login", json={"email": "old@example.com", "password": "pw"}
     )
-    access = resp.json()["access"]
+    access = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     resp = api_client.patch(
-        "/auth/email",
+        "/auth/me/email",
         json={"email": "new@example.com", "current_password": "pw"},
         headers=headers,
     )
-    assert resp.status_code == 200
-    assert "Verification email sent" in resp.json()["detail"]
+    assert resp.status_code == 202
+    assert resp.json() == {"status": "verification_pending"}
     pending = PendingEmailChange.objects.get(user=user)
     assert pending.new_email == "new@example.com"
     assert len(pending.token) == 64
@@ -44,13 +44,13 @@ def test_request_email_change_success(settings, api_client, monkeypatch):
 def test_request_email_change_requires_current_password(api_client):
     user = create_test_user(email="password@example.com", password="correct")
     token_response = api_client.post(
-        "/token/pair",
+        "/auth/login",
         json={"email": user.email, "password": "correct"},
     )
-    headers = {"Authorization": f"Bearer {token_response.json()['access']}"}
+    headers = {"Authorization": f"Bearer {token_response.json()['access_token']}"}
 
     response = api_client.patch(
-        "/auth/email",
+        "/auth/me/email",
         json={"email": "attacker@example.com", "current_password": "wrong"},
         headers=headers,
     )
@@ -145,17 +145,18 @@ def test_request_email_change_invalid_format(settings, api_client):
     settings.EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     user = create_test_user(email="invalid1@example.com", password="pw")
     resp = api_client.post(
-        "/token/pair", json={"email": "invalid1@example.com", "password": "pw"}
+        "/auth/login", json={"email": "invalid1@example.com", "password": "pw"}
     )
-    access = resp.json()["access"]
+    access = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     resp = api_client.patch(
-        "/auth/email",
+        "/auth/me/email",
         json={"email": "not-an-email", "current_password": "pw"},
         headers=headers,
     )
-    assert resp.status_code == 400
-    assert "Invalid email address" in resp.json()["detail"]
+    assert resp.status_code == 422
+    assert resp.json()["code"] == "validation_error"
+    assert resp.json()["errors"]
 
 
 @pytest.mark.django_db
@@ -164,12 +165,12 @@ def test_request_email_change_email_taken(settings, api_client):
     user1 = create_test_user(email="taken@example.com", password="pw")
     user2 = create_test_user(email="user2@example.com", password="pw")
     resp = api_client.post(
-        "/token/pair", json={"email": "user2@example.com", "password": "pw"}
+        "/auth/login", json={"email": "user2@example.com", "password": "pw"}
     )
-    access = resp.json()["access"]
+    access = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     resp = api_client.patch(
-        "/auth/email",
+        "/auth/me/email",
         json={"email": "taken@example.com", "current_password": "pw"},
         headers=headers,
     )
@@ -182,24 +183,24 @@ def test_multiple_pending_changes(settings, api_client):
     settings.EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     user = create_test_user(email="multi@example.com", password="pw")
     resp = api_client.post(
-        "/token/pair", json={"email": "multi@example.com", "password": "pw"}
+        "/auth/login", json={"email": "multi@example.com", "password": "pw"}
     )
-    access = resp.json()["access"]
+    access = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     # First request
     resp1 = api_client.patch(
-        "/auth/email",
+        "/auth/me/email",
         json={"email": "first@example.com", "current_password": "pw"},
         headers=headers,
     )
-    assert resp1.status_code == 200
+    assert resp1.status_code == 202
     # Second request before verifying
     resp2 = api_client.patch(
-        "/auth/email",
+        "/auth/me/email",
         json={"email": "second@example.com", "current_password": "pw"},
         headers=headers,
     )
-    assert resp2.status_code == 200
+    assert resp2.status_code == 202
     # Only one pending change should exist
     pendings = PendingEmailChange.objects.filter(user=user)
     assert pendings.count() == 1
@@ -232,13 +233,13 @@ def test_case_insensitive_email_uniqueness(settings, api_client):
     create_test_user(email="caseuser@example.com", password="pw")
     user2 = create_test_user(email="other@example.com", password="pw")
     resp = api_client.post(
-        "/token/pair", json={"email": "other@example.com", "password": "pw"}
+        "/auth/login", json={"email": "other@example.com", "password": "pw"}
     )
-    access = resp.json()["access"]
+    access = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     # Try to change to same email with different case
     resp = api_client.patch(
-        "/auth/email",
+        "/auth/me/email",
         json={"email": "CaseUser@Example.com", "current_password": "pw"},
         headers=headers,
     )
@@ -302,6 +303,6 @@ def test_verify_email_change_email_taken(api_client):
 
 def test_request_email_change_unauthenticated(settings, api_client):
     settings.EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-    resp = api_client.patch("/auth/email", json={"email": "unauth@example.com"})
+    resp = api_client.patch("/auth/me/email", json={"email": "unauth@example.com"})
     assert resp.status_code == 401
     # Optionally check error message

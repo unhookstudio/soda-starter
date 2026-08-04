@@ -16,12 +16,15 @@ from contacts.services import (
 )
 from contacts.throttles import contact_search_throttle
 from core.authentication import JWTAuth
-from core.schemas import AvatarUrlsOut, DetailResponse
+from core.schemas import AvatarUrlsOut
 from core.utils.avatar import schedule_avatar_file_deletion, sign_avatar_urls
 from core.utils.image import InvalidImageContent, resize_avatar_images
 from core.utils.storage import delete_storage_keys, upload_to_storage
 from core.utils.uploads import UploadTooLarge, read_uploaded_file_bounded
-from organizations.scope import resolve_org_scope, resolve_write_org_scope
+from organizations.scope import (
+    resolve_workspace_scope,
+    resolve_write_workspace_scope,
+)
 
 from .models import Contact
 from .schemas import ContactIn, ContactOut, ContactReplace, ContactUpdate
@@ -41,17 +44,20 @@ ALLOWED_SORT_FIELDS = {
 
 
 @contacts_router.get(
-    "/contacts/{contact_id}/avatar", response=AvatarUrlsOut, auth=JWTAuth()
+    "/workspaces/{workspace_id}/contacts/{contact_id}/avatar",
+    response=AvatarUrlsOut,
+    auth=JWTAuth(),
 )
-def get_contact_avatar(request, contact_id: uuid.UUID):
-    contact = get_object_or_404(Contact, id=contact_id)
+def get_contact_avatar(request, workspace_id: uuid.UUID, contact_id: uuid.UUID):
+    scope = resolve_workspace_scope(request, workspace_id)
+    contact = get_object_or_404(Contact, id=contact_id, organization=scope.workspace)
     if not contact.avatar_path:
         raise HttpError(404, "Avatar not found.")
     return sign_avatar_urls(contact.avatar_path)
 
 
 @contacts_router.get(
-    "/orgs/{org_slug}/contacts/",
+    "/workspaces/{workspace_id}/contacts",
     response=List[ContactOut],
     auth=JWTAuth(),
     throttle=[contact_search_throttle],
@@ -59,7 +65,7 @@ def get_contact_avatar(request, contact_id: uuid.UUID):
 @paginate(LimitOffsetPagination)
 def list_contacts(
     request,
-    org_slug: str,
+    workspace_id: uuid.UUID,
     search: Annotated[str | None, Query(max_length=MAX_CONTACT_SEARCH_LENGTH)] = None,
     sort_by: Literal[
         "display_name",
@@ -79,8 +85,8 @@ def list_contacts(
     - sort_by: Field to sort by (display_name, first_name, last_name, email, created_at, updated_at)
     - sort_order: Sort order (asc or desc)
     """
-    scope = resolve_org_scope(request, org_slug)
-    qs = contact_response_queryset().filter(organization=scope.org)
+    scope = resolve_workspace_scope(request, workspace_id)
+    qs = contact_response_queryset().filter(organization=scope.workspace)
 
     # Apply search if provided
     if search:
@@ -132,64 +138,79 @@ def list_contacts(
 
 
 @contacts_router.get(
-    "/orgs/{org_slug}/contacts/{slug}/", response=ContactOut, auth=JWTAuth()
+    "/workspaces/{workspace_id}/contacts/{contact_id}",
+    response=ContactOut,
+    auth=JWTAuth(),
 )
-def get_contact(request, org_slug: str, slug: str):
-    scope = resolve_org_scope(request, org_slug)
+def get_contact(request, workspace_id: uuid.UUID, contact_id: uuid.UUID):
+    scope = resolve_workspace_scope(request, workspace_id)
     contact = get_object_or_404(
         contact_response_queryset(),
-        organization=scope.org,
-        slug=slug,
+        organization=scope.workspace,
+        pk=contact_id,
     )
     return contact
 
 
 @contacts_router.post(
-    "/orgs/{org_slug}/contacts/", response={201: ContactOut}, auth=JWTAuth()
+    "/workspaces/{workspace_id}/contacts",
+    response={201: ContactOut},
+    auth=JWTAuth(),
 )
-def create_contact(request, org_slug: str, data: ContactIn):
-    scope = resolve_write_org_scope(request, org_slug)
+def create_contact(request, workspace_id: uuid.UUID, data: ContactIn):
+    scope = resolve_write_workspace_scope(request, workspace_id)
     user = scope.user
-    organization = scope.org
+    organization = scope.workspace
 
     return Status(201, create_contact_record(organization, user, data))
 
 
 @contacts_router.put(
-    "/orgs/{org_slug}/contacts/{slug}/", response=ContactOut, auth=JWTAuth()
+    "/workspaces/{workspace_id}/contacts/{contact_id}",
+    response=ContactOut,
+    auth=JWTAuth(),
 )
-def update_contact(request, org_slug: str, slug: str, data: ContactReplace):
-    scope = resolve_write_org_scope(request, org_slug)
+def update_contact(
+    request, workspace_id: uuid.UUID, contact_id: uuid.UUID, data: ContactReplace
+):
+    scope = resolve_write_workspace_scope(request, workspace_id)
     contact = get_object_or_404(
-        contact_response_queryset(), organization=scope.org, slug=slug
+        contact_response_queryset(), organization=scope.workspace, pk=contact_id
     )
     return replace_contact_record(contact, data)
 
 
 @contacts_router.patch(
-    "/orgs/{org_slug}/contacts/{slug}/", response=ContactOut, auth=JWTAuth()
+    "/workspaces/{workspace_id}/contacts/{contact_id}",
+    response=ContactOut,
+    auth=JWTAuth(),
 )
-def partial_update_contact(request, org_slug: str, slug: str, data: ContactUpdate):
-    scope = resolve_write_org_scope(request, org_slug)
+def partial_update_contact(
+    request, workspace_id: uuid.UUID, contact_id: uuid.UUID, data: ContactUpdate
+):
+    scope = resolve_write_workspace_scope(request, workspace_id)
     contact = get_object_or_404(
-        contact_response_queryset(), organization=scope.org, slug=slug
+        contact_response_queryset(), organization=scope.workspace, pk=contact_id
     )
     return update_contact_record(contact, data)
 
 
 @contacts_router.post(
-    "/orgs/{org_slug}/contacts/{slug}/avatar/",
+    "/workspaces/{workspace_id}/contacts/{contact_id}/avatar",
     response=AvatarUrlsOut,
     auth=JWTAuth(),
 )
 def upload_contact_avatar(
-    request, org_slug: str, slug: str, file: UploadedFile = File(...)
+    request,
+    workspace_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    file: UploadedFile = File(...),
 ):
     """
     Upload and set avatar for a contact. Stores small and large sizes, updates avatar_path.
     """
-    scope = resolve_write_org_scope(request, org_slug)
-    contact = get_object_or_404(Contact, organization=scope.org, slug=slug)
+    scope = resolve_write_workspace_scope(request, workspace_id)
+    contact = get_object_or_404(Contact, organization=scope.workspace, pk=contact_id)
     # File validation: max size 10MB
     MAX_SIZE = 10 * 1024 * 1024
     if (file.size or 0) > MAX_SIZE:
@@ -229,11 +250,13 @@ def upload_contact_avatar(
 
 
 @contacts_router.delete(
-    "/orgs/{org_slug}/contacts/{slug}/avatar/", auth=JWTAuth(), response=DetailResponse
+    "/workspaces/{workspace_id}/contacts/{contact_id}/avatar",
+    auth=JWTAuth(),
+    response={204: None},
 )
-def delete_contact_avatar(request, org_slug: str, slug: str):
-    scope = resolve_write_org_scope(request, org_slug)
-    contact = get_object_or_404(Contact, organization=scope.org, slug=slug)
+def delete_contact_avatar(request, workspace_id: uuid.UUID, contact_id: uuid.UUID):
+    scope = resolve_write_workspace_scope(request, workspace_id)
+    contact = get_object_or_404(Contact, organization=scope.workspace, pk=contact_id)
     if not contact.avatar_path:
         raise HttpError(404, "No avatar to delete.")
     old_avatar_path = contact.avatar_path
@@ -241,14 +264,16 @@ def delete_contact_avatar(request, org_slug: str, slug: str):
         contact.avatar_path = None
         contact.save(update_fields=["avatar_path", "updated_at"])
         schedule_avatar_file_deletion(old_avatar_path)
-    return DetailResponse(detail="Avatar deleted.")
+    return Status(204, None)
 
 
 @contacts_router.delete(
-    "/orgs/{org_slug}/contacts/{slug}/", response=DetailResponse, auth=JWTAuth()
+    "/workspaces/{workspace_id}/contacts/{contact_id}",
+    response={204: None},
+    auth=JWTAuth(),
 )
-def delete_contact(request, org_slug: str, slug: str):
-    scope = resolve_write_org_scope(request, org_slug)
-    contact = get_object_or_404(Contact, organization=scope.org, slug=slug)
+def delete_contact(request, workspace_id: uuid.UUID, contact_id: uuid.UUID):
+    scope = resolve_write_workspace_scope(request, workspace_id)
+    contact = get_object_or_404(Contact, organization=scope.workspace, pk=contact_id)
     contact.delete()
-    return DetailResponse(detail="Contact deleted.")
+    return Status(204, None)

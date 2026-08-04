@@ -19,11 +19,11 @@ def test_patch_username_success(api_client):
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     response = api_client.post(
-        "/token/pair", json={"email": "me@example.com", "password": "testpass"}
+        "/auth/login", json={"email": "me@example.com", "password": "testpass"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     response = api_client.patch(
-        "/users/username",
+        "/auth/me/username",
         json={"username": "newname"},
         headers={"Authorization": f"Bearer {access}"},
     )
@@ -31,8 +31,9 @@ def test_patch_username_success(api_client):
     data = response.json()
     assert data["username"] == "newname"
     assert data["slug"] == "oldname"
-    assert data["org_name"] == "newname"
-    assert data["org_slug"] == "oldname-success"
+    org.refresh_from_db()
+    assert org.name == "newname"
+    assert org.slug == "oldname-success"
     # Ensure DB updated
     user.refresh_from_db()
     org.refresh_from_db()
@@ -61,11 +62,11 @@ def test_patch_username_taken(api_client):
     )
     Membership.objects.create(user=user1, organization=org, role="owner")
     response = api_client.post(
-        "/token/pair", json={"email": "me@example.com", "password": "testpass"}
+        "/auth/login", json={"email": "me@example.com", "password": "testpass"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     response = api_client.patch(
-        "/users/username",
+        "/auth/me/username",
         json={"username": "takenname"},
         headers={"Authorization": f"Bearer {access}"},
     )
@@ -84,11 +85,11 @@ def test_patch_username_empty(api_client):
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     response = api_client.post(
-        "/token/pair", json={"email": "me2@example.com", "password": "testpass"}
+        "/auth/login", json={"email": "me2@example.com", "password": "testpass"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     response = api_client.patch(
-        "/users/username",
+        "/auth/me/username",
         json={"username": "   "},
         headers={"Authorization": f"Bearer {access}"},
     )
@@ -107,11 +108,11 @@ def test_patch_username_rejects_invalid_characters(api_client):
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     response = api_client.post(
-        "/token/pair", json={"email": "invalidname@example.com", "password": "testpass"}
+        "/auth/login", json={"email": "invalidname@example.com", "password": "testpass"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     response = api_client.patch(
-        "/users/username",
+        "/auth/me/username",
         json={"username": "bad name!"},
         headers={"Authorization": f"Bearer {access}"},
     )
@@ -127,11 +128,11 @@ def test_patch_username_org_missing(api_client):
     # Ensure no personal org exists for user
     Organization.objects.filter(memberships__user=user, kind="personal").delete()
     response = api_client.post(
-        "/token/pair", json={"email": "me3@example.com", "password": "testpass"}
+        "/auth/login", json={"email": "me3@example.com", "password": "testpass"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     response = api_client.patch(
-        "/users/username",
+        "/auth/me/username",
         json={"username": "newname3"},
         headers={"Authorization": f"Bearer {access}"},
     )

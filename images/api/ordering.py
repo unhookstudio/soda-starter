@@ -1,9 +1,10 @@
 from uuid import UUID
 
+from ninja import Status
 from ninja.errors import HttpError
 
 from core.authentication import JWTAuth
-from core.utils.polymorphic import resolve_org_scoped_content_object
+from core.utils.polymorphic import resolve_workspace_scoped_content_object
 from images.api.common import logger, router
 from images.api_schemas import ReorderIn
 from images.operations import (
@@ -14,19 +15,24 @@ from images.operations import (
     set_object_cover_image,
     unset_object_cover_image,
 )
-from images.schemas import DetailResponse, SetCoverIn
+from images.schemas import SetCoverIn
 
 
-@router.post(
-    "/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/reorder",
-    response=DetailResponse,
+@router.put(
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/images/order",
+    response={204: None},
     auth=JWTAuth(),
 )
 def reorder_images(
-    request, org_slug: str, app_label: str, model: str, obj_id: UUID, data: ReorderIn
+    request,
+    workspace_id: UUID,
+    app_label: str,
+    model: str,
+    object_id: UUID,
+    data: ReorderIn,
 ):
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
@@ -52,22 +58,27 @@ def reorder_images(
         getattr(user, "id", None),
         app_label,
         model,
-        obj_id,
+        object_id,
         provided,
     )
-    return DetailResponse(detail="ok")
+    return Status(204, None)
 
 
-@router.post(
-    "/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/set_cover",
-    response=DetailResponse,
+@router.put(
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/cover-image",
+    response={204: None},
     auth=JWTAuth(),
 )
 def set_cover_image(
-    request, org_slug: str, app_label: str, model: str, obj_id: UUID, data: SetCoverIn
+    request,
+    workspace_id: UUID,
+    app_label: str,
+    model: str,
+    object_id: UUID,
+    data: SetCoverIn,
 ):
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
@@ -91,20 +102,22 @@ def set_cover_image(
         getattr(user, "id", None),
         app_label,
         model,
-        obj_id,
+        object_id,
         data.image_id,
     )
-    return DetailResponse(detail="ok")
+    return Status(204, None)
 
 
-@router.post(
-    "/orgs/{org_slug}/images/{app_label}/{model}/{obj_id}/unset_cover",
-    response=DetailResponse,
+@router.delete(
+    "/workspaces/{workspace_id}/objects/{app_label}/{model}/{object_id}/cover-image",
+    response={204: None},
     auth=JWTAuth(),
 )
-def unset_cover_image(request, org_slug: str, app_label: str, model: str, obj_id: UUID):
-    resolved = resolve_org_scoped_content_object(
-        request, org_slug, app_label, model, obj_id
+def unset_cover_image(
+    request, workspace_id: UUID, app_label: str, model: str, object_id: UUID
+):
+    resolved = resolve_workspace_scoped_content_object(
+        request, workspace_id, app_label, model, object_id
     )
     resolved.scope.require_write()
     org = resolved.organization
@@ -120,6 +133,6 @@ def unset_cover_image(request, org_slug: str, app_label: str, model: str, obj_id
         getattr(user, "id", None),
         app_label,
         model,
-        obj_id,
+        object_id,
     )
-    return DetailResponse(detail="ok")
+    return Status(204, None)

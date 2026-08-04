@@ -23,15 +23,15 @@ def create_test_image(format="PNG", size=(100, 100)):
 def test_avatar_upload_too_large(monkeypatch, api_client):
     user = create_test_user(email="bigavatar@example.com", password="pw")
     response = api_client.post(
-        "/token/pair", json={"email": "bigavatar@example.com", "password": "pw"}
+        "/auth/login", json={"email": "bigavatar@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     # Create a dummy 11MB file for upload
     large_bytes = b"x" * (11 * 1024 * 1024)
     uploaded = SimpleUploadedFile("large.png", large_bytes, content_type="image/png")
     files = MultiValueDict({"file": [uploaded]})
-    response = api_client.post("/users/avatar", data={}, FILES=files, headers=headers)
+    response = api_client.post("/auth/me/avatar", data={}, FILES=files, headers=headers)
     assert response.status_code == 400
     assert "too large" in response.json()["detail"].lower()
 
@@ -40,9 +40,9 @@ def test_avatar_upload_too_large(monkeypatch, api_client):
 def test_avatar_upload_invalid_content_type(api_client):
     user = create_test_user(email="badtype@example.com", password="pw")
     response = api_client.post(
-        "/token/pair", json={"email": "badtype@example.com", "password": "pw"}
+        "/auth/login", json={"email": "badtype@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     img_buf = create_test_image()
     img_buf.name = "notanimage.txt"
@@ -58,7 +58,7 @@ def test_avatar_upload_invalid_content_type(api_client):
         fake_file.name, fake_file.read(), content_type=fake_file.content_type
     )
     files = MultiValueDict({"file": [uploaded]})
-    response = api_client.post("/users/avatar", data={}, FILES=files, headers=headers)
+    response = api_client.post("/auth/me/avatar", data={}, FILES=files, headers=headers)
     assert response.status_code == 400
     assert "invalid file type" in response.json()["detail"].lower()
 
@@ -67,9 +67,9 @@ def test_avatar_upload_invalid_content_type(api_client):
 def test_avatar_upload_corrupt_image(api_client):
     user = create_test_user(email="corruptimg@example.com", password="pw")
     response = api_client.post(
-        "/token/pair", json={"email": "corruptimg@example.com", "password": "pw"}
+        "/auth/login", json={"email": "corruptimg@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
 
     class CorruptFile(io.BytesIO):
@@ -83,14 +83,14 @@ def test_avatar_upload_corrupt_image(api_client):
         corrupt_file.name, corrupt_file.read(), content_type=corrupt_file.content_type
     )
     files = MultiValueDict({"file": [uploaded]})
-    response = api_client.post("/users/avatar", data={}, FILES=files, headers=headers)
+    response = api_client.post("/auth/me/avatar", data={}, FILES=files, headers=headers)
     assert response.status_code == 400
     assert "not a valid image" in response.json()["detail"].lower()
 
 
 @pytest.mark.django_db
 def test_avatar_delete_unauthenticated(api_client):
-    response = api_client.delete("/users/avatar")
+    response = api_client.delete("/auth/me/avatar")
     assert response.status_code == 401
     assert (
         "authentication required" in response.json()["detail"].lower()
@@ -104,13 +104,13 @@ def test_avatar_delete_authenticated(api_client):
     user.avatar_path = "avatars/delme.webp"
     user.save()
     response = api_client.post(
-        "/token/pair", json={"email": "delavatar@example.com", "password": "pw"}
+        "/auth/login", json={"email": "delavatar@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    response = api_client.delete("/users/avatar", headers=headers)
-    assert response.status_code == 200
-    assert "deleted" in response.json()["detail"].lower()
+    response = api_client.delete("/auth/me/avatar", headers=headers)
+    assert response.status_code == 204
+    assert response.content == b""
     user.refresh_from_db()
     assert user.avatar_path is None
 
@@ -121,13 +121,13 @@ def test_avatar_delete_when_no_avatar(api_client):
     user.avatar_path = None
     user.save()
     response = api_client.post(
-        "/token/pair", json={"email": "noavatar@example.com", "password": "pw"}
+        "/auth/login", json={"email": "noavatar@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    response = api_client.delete("/users/avatar", headers=headers)
-    assert response.status_code == 200
-    assert "deleted" in response.json()["detail"].lower()
+    response = api_client.delete("/auth/me/avatar", headers=headers)
+    assert response.status_code == 204
+    assert response.content == b""
     user.refresh_from_db()
     assert user.avatar_path is None
 
@@ -136,9 +136,9 @@ def test_avatar_delete_when_no_avatar(api_client):
 def test_avatar_upload_valid(monkeypatch, api_client):
     user = create_test_user(email="validavatar@example.com", password="pw")
     response = api_client.post(
-        "/token/pair", json={"email": "validavatar@example.com", "password": "pw"}
+        "/auth/login", json={"email": "validavatar@example.com", "password": "pw"}
     )
-    access = response.json()["access"]
+    access = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     img_buf = create_test_image(format="PNG", size=(128, 128))
     uploaded = SimpleUploadedFile(
@@ -168,7 +168,7 @@ def test_avatar_upload_valid(monkeypatch, api_client):
             "expires_at": "2030-01-01T00:00:00Z",
         },
     )
-    response = api_client.post("/users/avatar", data={}, FILES=files, headers=headers)
+    response = api_client.post("/auth/me/avatar", data={}, FILES=files, headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert "/avatars/users/" in data["small"]
@@ -194,13 +194,13 @@ def test_any_authenticated_user_can_resolve_user_avatar(monkeypatch, api_client)
         },
     )
     access_response = api_client.post(
-        "/token/pair",
+        "/auth/login",
         json={"email": viewer.email, "password": "pw"},
     )
 
     response = api_client.get(
-        f"/users/{owner.slug}/avatar",
-        headers={"Authorization": f"Bearer {access_response.json()['access']}"},
+        f"/users/{owner.id}/avatar",
+        headers={"Authorization": f"Bearer {access_response.json()['access_token']}"},
     )
 
     assert response.status_code == 200

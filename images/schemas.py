@@ -60,8 +60,8 @@ class ImageOut(BaseModel):
     description: Optional[str] = None
     alt_text: Optional[str] = None
     title: Optional[str] = None
-    organization: UUID = Field(..., alias="organization_id")
-    creator: Optional[UUID] = Field(None, alias="creator_id")
+    workspace_id: UUID = Field(..., validation_alias="organization_id")
+    creator_id: Optional[UUID] = Field(None, validation_alias="creator_id")
     created_at: str
     updated_at: str
 

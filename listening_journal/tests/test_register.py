@@ -12,9 +12,9 @@ class TestRegister:
         self.client = TestClient(api)
 
     def test_register_requires_email_and_forbids_password(self):
-        missing = self.client.post("/auth/register/", json={})
+        missing = self.client.post("/auth/register", json={})
         extra = self.client.post(
-            "/auth/register/",
+            "/auth/register",
             json={"email": "user@example.com", "password": "not-accepted-here"},
         )
 
@@ -25,11 +25,11 @@ class TestRegister:
         create_test_user(email="existing@example.com", password="testpass123")
 
         response = self.client.post(
-            "/auth/register/", json={"email": "Existing@Example.com"}
+            "/auth/register", json={"email": "Existing@Example.com"}
         )
 
-        assert response.status_code == 200
-        assert "verification email" in response.json()["detail"]
+        assert response.status_code == 202
+        assert response.json()["status"] == "verification_pending"
         assert User.objects.filter(email__iexact="existing@example.com").count() == 1
         assert not PendingRegistration.objects.filter(
             email__iexact="existing@example.com"
@@ -38,9 +38,9 @@ class TestRegister:
     def test_register_success_creates_pending_identity_only(self):
         email = "newuser@example.com"
 
-        response = self.client.post("/auth/register/", json={"email": email})
+        response = self.client.post("/auth/register", json={"email": email})
 
-        assert response.status_code == 200
-        assert "verification email" in response.json()["detail"]
+        assert response.status_code == 202
+        assert response.json()["status"] == "verification_pending"
         assert PendingRegistration.objects.filter(email=email).exists()
         assert not User.objects.filter(email=email).exists()

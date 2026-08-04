@@ -21,7 +21,7 @@ def api_client():
 
 @pytest.fixture
 def make_auth_headers():
-    """Return a callable that generates Bearer auth headers for a user via /token/pair."""
+    """Return a callable that generates Bearer auth headers for a user via /auth/login."""
 
     def _make(client: TestClient, user, password: str = "pw") -> dict[str, str]:
         from accounts.services import issue_token_pair

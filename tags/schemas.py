@@ -28,7 +28,7 @@ class TagOut(BaseModel):
     id: UUID
     name: str
     slug: str
-    organization: UUID = Field(..., alias="organization_id")
+    workspace_id: UUID = Field(..., validation_alias="organization_id")
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -28,7 +28,7 @@ def tag_context(api_client, make_auth_headers):
         creator=user,
     )
     headers = make_auth_headers(api_client, user, password="pw")
-    url = f"/orgs/{organization.slug}/tags/contacts/contact/{contact.id}/"
+    url = f"/workspaces/{organization.id}/objects/contacts/contact/{contact.id}/tags"
     return organization, contact, headers, url
 
 
@@ -69,7 +69,7 @@ def test_assignment_rejects_more_than_fifty_names(api_client, tag_context):
         headers=headers,
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     assert not Tag.objects.filter(organization=organization).exists()
 
 
@@ -80,7 +80,7 @@ def test_assignment_rejects_invalid_names(api_client, tag_context, name):
 
     response = api_client.post(url, json=[name], headers=headers)
 
-    assert response.status_code == 400
+    assert response.status_code == 422
     assert not Tag.objects.filter(organization=organization).exists()
 
 
@@ -115,15 +115,15 @@ def test_create_and_rename_share_tag_name_normalization(api_client, tag_context)
     organization, _contact, headers, _url = tag_context
 
     create_response = api_client.post(
-        f"/orgs/{organization.slug}/tags/",
+        f"/workspaces/{organization.id}/tags",
         json={"name": " VIP "},
         headers=headers,
     )
-    assert create_response.status_code == 200
+    assert create_response.status_code == 201
     assert create_response.json()["name"] == "VIP"
 
     rename_response = api_client.patch(
-        f"/orgs/{organization.slug}/tags/{create_response.json()['id']}/",
+        f"/workspaces/{organization.id}/tags/{create_response.json()['id']}",
         json={"name": " Priority "},
         headers=headers,
     )

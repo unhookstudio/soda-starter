@@ -15,8 +15,8 @@ from ninja.testing.client import TestClient as NinjaTestClient
 
 
 def login_client(client: NinjaTestClient, user):
-    response = client.post("/token/pair", json={"email": user.email, "password": "pw"})
-    token = response.json()["access"]
+    response = client.post("/auth/login", json={"email": user.email, "password": "pw"})
+    token = response.json()["access_token"]
     client.headers = {"Authorization": f"Bearer {token}"}
 
 
@@ -29,12 +29,12 @@ def test_assign_tag_to_contact(api_client):
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     login_client(api_client, user)
-    url = f"/orgs/{org.slug}/tags/contacts/contact/{contact.id}/"
+    url = f"/workspaces/{org.id}/objects/contacts/contact/{contact.id}/tags"
     response = api_client.post(url, json=["vip", "newsletter"])
     assert response.status_code == 200
     data = response.json()
     assert set([tag["name"] for tag in data]) == {"vip", "newsletter"}
-    assert all(tag["organization"] == str(org.id) for tag in data)
+    assert all(tag["workspace_id"] == str(org.id) for tag in data)
     assert TaggedItem.objects.filter(object_id=contact.id, tag__name="vip").exists()
     assert TaggedItem.objects.filter(
         object_id=contact.id, tag__name="newsletter"
@@ -51,7 +51,7 @@ def test_assign_duplicate_tag_to_contact(api_client):
     Tag.objects.create(organization=org, name="vip", slug="vip")
     Membership.objects.create(user=user, organization=org, role="owner")
     login_client(api_client, user)
-    url = f"/orgs/{org.slug}/tags/contacts/contact/{contact.id}/"
+    url = f"/workspaces/{org.id}/objects/contacts/contact/{contact.id}/tags"
     response1 = api_client.post(url, json=["vip"])
     response2 = api_client.post(url, json=["vip"])
     assert response1.status_code == 200
@@ -70,9 +70,9 @@ def test_remove_tag_from_contact(api_client):
     TaggedItem.objects.create(tag=tag, content_object=contact)
     Membership.objects.create(user=user, organization=org, role="owner")
     login_client(api_client, user)
-    url = f"/orgs/{org.slug}/tags/contacts/contact/{contact.id}/vip/"
+    url = f"/workspaces/{org.id}/objects/contacts/contact/{contact.id}/tags/{tag.id}"
     response = api_client.delete(url)
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert not TaggedItem.objects.filter(object_id=contact.id, tag__name="vip").exists()
 
 
@@ -117,13 +117,13 @@ def test_edit_tag_name(api_client):
     tag = Tag.objects.create(organization=org, name="old", slug="old")
     login_client(api_client, user)
     response = api_client.patch(
-        f"/orgs/{org.slug}/tags/{tag.id}/", json={"name": "newname"}
+        f"/workspaces/{org.id}/tags/{tag.id}", json={"name": "newname"}
     )
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "newname"
     assert data["slug"] == "newname"
-    assert data["organization"] == str(org.id)
+    assert data["workspace_id"] == str(org.id)
     tag.refresh_from_db()
     assert tag.name == "newname"
     assert tag.slug == "newname"
@@ -138,7 +138,7 @@ def test_edit_tag_name_conflict(api_client):
     tag2 = Tag.objects.create(organization=org, name="bar", slug="bar")
     login_client(api_client, user)
     response = api_client.patch(
-        f"/orgs/{org.slug}/tags/{tag2.id}/", json={"name": "foo"}
+        f"/workspaces/{org.id}/tags/{tag2.id}", json={"name": "foo"}
     )
     assert response.status_code == 409
     assert b"already exists" in response.content
@@ -152,7 +152,7 @@ def test_tag_list_pagination(api_client):
     for i in range(15):
         Tag.objects.create(organization=org, name=f"tag{i}", slug=f"tag{i}")
     login_client(api_client, user)
-    response = api_client.get(f"/orgs/{org.slug}/tags/?limit=10&offset=0")
+    response = api_client.get(f"/workspaces/{org.id}/tags?limit=10&offset=0")
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
@@ -172,12 +172,12 @@ def test_canonical_tags_prefix_routes_work(api_client):
     login_client(api_client, user)
 
     assign_response = api_client.post(
-        f"/orgs/{org.slug}/tags/contacts/contact/{contact.id}/",
+        f"/workspaces/{org.id}/objects/contacts/contact/{contact.id}/tags",
         json=["vip"],
     )
     assert assign_response.status_code == 200
 
-    list_response = api_client.get(f"/orgs/{org.slug}/tags/?limit=10&offset=0")
+    list_response = api_client.get(f"/workspaces/{org.id}/tags?limit=10&offset=0")
     assert list_response.status_code == 200
     assert list_response.json()["items"][0]["name"] == "vip"
 
@@ -190,4 +190,4 @@ def test_legacy_org_tags_prefix_is_not_registered(api_client):
     login_client(api_client, user)
 
     with pytest.raises(Exception, match="Cannot resolve"):
-        api_client.get(f"/tags/orgs/{org.slug}/tags/?limit=10&offset=0")
+        api_client.get(f"/tags/workspaces/{org.id}/tags/?limit=10&offset=0")

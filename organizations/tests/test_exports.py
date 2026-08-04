@@ -26,12 +26,14 @@ def test_only_org_admins_can_create_exports(api_client, make_auth_headers):
     Membership.objects.create(user=member, organization=org, role="member")
 
     member_headers = make_auth_headers(api_client, member, password="pw")
-    denied = api_client.post(f"/orgs/{org.slug}/exports/", headers=member_headers)
+    denied = api_client.post(f"/workspaces/{org.id}/exports", headers=member_headers)
     assert denied.status_code == 403
 
     admin_headers = make_auth_headers(api_client, admin, password="pw")
     with patch("organizations.export_tasks.defer_task") as publish:
-        response = api_client.post(f"/orgs/{org.slug}/exports/", headers=admin_headers)
+        response = api_client.post(
+            f"/workspaces/{org.id}/exports", headers=admin_headers
+        )
     assert response.status_code == 202
     job = ExportJob.objects.get(pk=response.json()["id"])
     assert job.requested_by == admin
@@ -203,13 +205,13 @@ def test_retry_allows_failed_and_stale_but_rejects_active_exports(
 
     with patch("organizations.export_tasks.defer_task") as publish:
         failed_response = api_client.post(
-            f"/orgs/{org.slug}/exports/{failed.pk}/retry/", headers=headers
+            f"/workspaces/{org.id}/exports/{failed.pk}/retry", headers=headers
         )
         stale_response = api_client.post(
-            f"/orgs/{org.slug}/exports/{stale.pk}/retry/", headers=headers
+            f"/workspaces/{org.id}/exports/{stale.pk}/retry", headers=headers
         )
         active_response = api_client.post(
-            f"/orgs/{org.slug}/exports/{active.pk}/retry/", headers=headers
+            f"/workspaces/{org.id}/exports/{active.pk}/retry", headers=headers
         )
 
     assert failed_response.status_code == 202
@@ -242,7 +244,7 @@ def test_ready_export_url_is_generated_on_authenticated_read(
     )
 
     headers = make_auth_headers(api_client, admin, password="pw")
-    response = api_client.get(f"/orgs/{org.slug}/exports/{job.pk}/", headers=headers)
+    response = api_client.get(f"/workspaces/{org.id}/exports/{job.pk}", headers=headers)
 
     assert response.status_code == 200
     assert response.json()["download_url"].endswith("?signed=1")
@@ -272,7 +274,7 @@ def test_export_list_does_not_generate_download_credentials(
     with patch(
         "organizations.api_export.generate_private_presigned_storage_url"
     ) as sign:
-        response = api_client.get(f"/orgs/{org.slug}/exports/", headers=headers)
+        response = api_client.get(f"/workspaces/{org.id}/exports", headers=headers)
 
     assert response.status_code == 200
     assert all(item["download_url"] is None for item in response.json())

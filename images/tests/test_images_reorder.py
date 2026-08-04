@@ -24,19 +24,19 @@ def create_test_image_file(color=(10, 20, 30), size=(64, 64), name="t.png"):
 def get_access_token(email, password):
     client = Client()
     resp = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/json",
     )
-    if resp.status_code == 200 and "access" in resp.json():
-        return resp.json().get("access")
+    if resp.status_code == 200 and "access_token" in resp.json():
+        return resp.json().get("access_token")
     # fallback
     resp2 = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/x-www-form-urlencoded",
     )
-    return resp2.json().get("access")
+    return resp2.json().get("access_token")
 
 
 @pytest.mark.django_db
@@ -63,7 +63,7 @@ def test_attach_defaults_primary_and_order():
     obj_id = org.id
 
     # attach both
-    url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/"
+    url = f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/images"
     resp = client.post(
         url,
         data={"image_ids": [img1.id]},
@@ -117,7 +117,9 @@ def test_reorder_sets_primary_and_orders():
     model = "organization"
     obj_id = org.id
 
-    attach_url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/"
+    attach_url = (
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/images"
+    )
     resp = client.post(
         attach_url,
         data={"image_ids": [i.id for i in imgs]},
@@ -128,14 +130,16 @@ def test_reorder_sets_primary_and_orders():
 
     # reorder to [2, 0, 1]
     new_order = [imgs[2].id, imgs[0].id, imgs[1].id]
-    reorder_url = f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{obj_id}/reorder"
-    resp = client.post(
+    reorder_url = (
+        f"/api/v1/workspaces/{org.id}/objects/{app_label}/{model}/{obj_id}/images/order"
+    )
+    resp = client.put(
         reorder_url,
         data={"image_ids": new_order},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {token}",
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 204
 
     ct = ContentType.objects.get(app_label=app_label, model=model)
     rels = list(

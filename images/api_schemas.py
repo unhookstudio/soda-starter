@@ -11,6 +11,21 @@ class BulkDeleteResponse(Schema):
     error: Optional[str] = None
 
 
+class BulkDeleteFailure(Schema):
+    id: UUID
+    reason: str
+
+
+class BulkDeleteOut(Schema):
+    deleted: list[UUID]
+    failed: list[BulkDeleteFailure]
+
+
+class BulkDeleteIn(Schema):
+    image_ids: list[UUID]
+    model_config = ConfigDict(extra="forbid")
+
+
 class BulkUploadResponse(Schema):
     id: Optional[UUID] = None
     file: Optional[str] = None

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from uuid import UUID
 
 from django.http import HttpRequest
-from ninja.errors import HttpError
 
 from accounts.models import User
+from core.api_errors import ApiError
 from core.utils.auth_utils import get_request_user
 from organizations.models import Membership, Organization
 
@@ -14,14 +15,14 @@ audit_logger = logging.getLogger("audit")
 
 
 def is_platform_admin(user: User) -> bool:
-    """Staff status alone never grants cross-tenant application access."""
+    """Staff status alone never grants cross-workspace application access."""
     return bool(getattr(user, "is_superuser", False))
 
 
 @dataclass(frozen=True)
-class OrgScope:
+class WorkspaceScope:
     user: User
-    org: Organization
+    workspace: Organization
     membership: Membership | None = None
 
     @property
@@ -36,61 +37,81 @@ class OrgScope:
 
     @property
     def can_write(self) -> bool:
-        return is_platform_admin(self.user) or self.role in {"member", "admin", "owner"}
+        return is_platform_admin(self.user) or self.role in {
+            "member",
+            "admin",
+            "owner",
+        }
 
-    def require_admin(self) -> "OrgScope":
+    def require_admin(self) -> "WorkspaceScope":
         if not self.can_admin:
-            raise HttpError(403, "Only org admins/owners can perform this action.")
+            raise ApiError(
+                403,
+                "workspace_admin_required",
+                "A workspace administrator or owner is required.",
+            )
         return self
 
-    def require_write(self) -> "OrgScope":
+    def require_write(self) -> "WorkspaceScope":
         if not self.can_write:
-            raise HttpError(403, "You do not have access to this organization.")
+            raise ApiError(
+                403,
+                "workspace_write_forbidden",
+                "You cannot modify this workspace.",
+            )
         return self
 
 
-def resolve_org_scope(request: HttpRequest, org_slug: str) -> OrgScope:
+def resolve_workspace_scope(request: HttpRequest, workspace_id: UUID) -> WorkspaceScope:
     user = get_request_user(request)
     membership = (
         Membership.objects.select_related("organization")
         .filter(
             user=user,
-            organization__slug=org_slug,
+            organization_id=workspace_id,
         )
         .first()
     )
     if membership is not None:
-        return OrgScope(user=user, org=membership.organization, membership=membership)
+        return WorkspaceScope(
+            user=user,
+            workspace=membership.organization,
+            membership=membership,
+        )
 
     if not is_platform_admin(user):
-        raise HttpError(404, "Organization not found")
+        raise ApiError(404, "workspace_not_found", "Workspace not found.")
 
     try:
-        org = Organization.objects.get(slug=org_slug)
+        workspace = Organization.objects.get(pk=workspace_id)
     except Organization.DoesNotExist as exc:
-        raise HttpError(404, "Organization not found") from exc
-    else:
-        audit_logger.info(
-            "audit:platform_admin_tenant_access",
-            extra={
-                "event": "platform_admin_tenant_access",
-                "org": org.pk,
-                "user": user.pk,
-                "method": getattr(request, "method", "UNKNOWN"),
-                "path": getattr(request, "path", ""),
-                "access": (
-                    "read"
-                    if getattr(request, "method", "GET") in {"GET", "HEAD", "OPTIONS"}
-                    else "write"
-                ),
-            },
-        )
-    return OrgScope(user=user, org=org)
+        raise ApiError(404, "workspace_not_found", "Workspace not found.") from exc
+
+    audit_logger.info(
+        "audit:platform_admin_workspace_access",
+        extra={
+            "event": "platform_admin_workspace_access",
+            "workspace": str(workspace.pk),
+            "user": str(user.pk),
+            "method": getattr(request, "method", "UNKNOWN"),
+            "path": getattr(request, "path", ""),
+            "access": (
+                "read"
+                if getattr(request, "method", "GET") in {"GET", "HEAD", "OPTIONS"}
+                else "write"
+            ),
+        },
+    )
+    return WorkspaceScope(user=user, workspace=workspace)
 
 
-def resolve_write_org_scope(request: HttpRequest, org_slug: str) -> OrgScope:
-    return resolve_org_scope(request, org_slug).require_write()
+def resolve_write_workspace_scope(
+    request: HttpRequest, workspace_id: UUID
+) -> WorkspaceScope:
+    return resolve_workspace_scope(request, workspace_id).require_write()
 
 
-def resolve_admin_org_scope(request: HttpRequest, org_slug: str) -> OrgScope:
-    return resolve_org_scope(request, org_slug).require_admin()
+def resolve_admin_workspace_scope(
+    request: HttpRequest, workspace_id: UUID
+) -> WorkspaceScope:
+    return resolve_workspace_scope(request, workspace_id).require_admin()

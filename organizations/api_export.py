@@ -15,13 +15,15 @@ from organizations.export_tasks import (
     reset_export_for_retry,
 )
 from organizations.models import ExportJob
-from organizations.scope import resolve_admin_org_scope
+from organizations.scope import resolve_admin_workspace_scope
 
-export_router = Router(tags=["organization", "export"])
+export_router = Router(tags=["exports"])
 
 
 class ExportJobOut(Schema):
     id: UUID
+    workspace_id: UUID
+    requested_by_id: UUID | None
     status: str
     created_at: datetime
     started_at: datetime | None = None
@@ -50,6 +52,8 @@ def serialize_export_job(
         )
     return ExportJobOut(
         id=job.pk,
+        workspace_id=job.organization_id,
+        requested_by_id=job.requested_by_id,
         status=job.status,
         created_at=job.created_at,
         started_at=job.started_at,
@@ -68,14 +72,14 @@ def publish_export(job: ExportJob) -> None:
 
 
 @export_router.post(
-    "/orgs/{org_slug}/exports/",
+    "/workspaces/{workspace_id}/exports",
     response={202: ExportJobOut},
     auth=JWTAuth(),
 )
-def create_export(request, org_slug: str):
-    scope = resolve_admin_org_scope(request, org_slug)
+def create_export(request, workspace_id: UUID):
+    scope = resolve_admin_workspace_scope(request, workspace_id)
     job = ExportJob.objects.create(
-        organization=scope.org,
+        organization=scope.workspace,
         requested_by=scope.user,
     )
     publish_export(job)
@@ -83,39 +87,41 @@ def create_export(request, org_slug: str):
 
 
 @export_router.get(
-    "/orgs/{org_slug}/exports/",
+    "/workspaces/{workspace_id}/exports",
     response=list[ExportJobOut],
     auth=JWTAuth(),
 )
-def list_exports(request, org_slug: str):
-    scope = resolve_admin_org_scope(request, org_slug)
-    jobs = ExportJob.objects.filter(organization=scope.org).order_by("-created_at")[:50]
+def list_exports(request, workspace_id: UUID):
+    scope = resolve_admin_workspace_scope(request, workspace_id)
+    jobs = ExportJob.objects.filter(organization=scope.workspace).order_by(
+        "-created_at"
+    )[:50]
     return [serialize_export_job(job, include_download_url=False) for job in jobs]
 
 
 @export_router.get(
-    "/orgs/{org_slug}/exports/{job_id}/",
+    "/workspaces/{workspace_id}/exports/{job_id}",
     response=ExportJobOut,
     auth=JWTAuth(),
 )
-def get_export(request, org_slug: str, job_id: UUID):
-    scope = resolve_admin_org_scope(request, org_slug)
-    job = get_object_or_404(ExportJob, pk=job_id, organization=scope.org)
+def get_export(request, workspace_id: UUID, job_id: UUID):
+    scope = resolve_admin_workspace_scope(request, workspace_id)
+    job = get_object_or_404(ExportJob, pk=job_id, organization=scope.workspace)
     return serialize_export_job(job, include_download_url=True)
 
 
 @export_router.post(
-    "/orgs/{org_slug}/exports/{job_id}/retry/",
+    "/workspaces/{workspace_id}/exports/{job_id}/retry",
     response={202: ExportJobOut},
     auth=JWTAuth(),
 )
-def retry_export(request, org_slug: str, job_id: UUID):
-    scope = resolve_admin_org_scope(request, org_slug)
+def retry_export(request, workspace_id: UUID, job_id: UUID):
+    scope = resolve_admin_workspace_scope(request, workspace_id)
     with transaction.atomic():
         job = get_object_or_404(
             ExportJob.objects.select_for_update(),
             pk=job_id,
-            organization=scope.org,
+            organization=scope.workspace,
         )
         if job.status != ExportJob.Status.FAILED and not is_export_job_stale(job):
             raise HttpError(409, "Only failed or stale exports can be retried.")

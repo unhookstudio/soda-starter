@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from ninja.errors import HttpError
 
 from contacts.models import Contact
-from core.utils.polymorphic import resolve_org_scoped_content_object
+from core.utils.polymorphic import resolve_workspace_scoped_content_object
 from organizations.models import Membership
 from organizations.tests.utils import create_test_group
 
@@ -39,14 +39,14 @@ def org(member_user):
 
 
 @pytest.mark.django_db
-def test_resolve_org_scoped_content_object_allows_member_object(member_user, org):
+def test_resolve_workspace_scoped_content_object_allows_member_object(member_user, org):
     contact = Contact.objects.create(
         display_name="Jane", organization=org, creator=member_user
     )
 
-    resolved = resolve_org_scoped_content_object(
+    resolved = resolve_workspace_scoped_content_object(
         DummyRequest(member_user),
-        org.slug,
+        org.id,
         "contacts",
         "contact",
         contact.id,
@@ -59,16 +59,18 @@ def test_resolve_org_scoped_content_object_allows_member_object(member_user, org
 
 
 @pytest.mark.django_db
-def test_resolve_org_scoped_content_object_rejects_cross_org_object(member_user, org):
+def test_resolve_workspace_scoped_content_object_rejects_cross_org_object(
+    member_user, org
+):
     other_org = create_test_group(name="Other", slug="other")
     contact = Contact.objects.create(
         display_name="Jane", organization=other_org, creator=member_user
     )
 
     with pytest.raises(HttpError) as exc_info:
-        resolve_org_scoped_content_object(
+        resolve_workspace_scoped_content_object(
             DummyRequest(member_user),
-            org.slug,
+            org.id,
             "contacts",
             "contact",
             contact.id,
@@ -78,15 +80,17 @@ def test_resolve_org_scoped_content_object_rejects_cross_org_object(member_user,
 
 
 @pytest.mark.django_db
-def test_resolve_org_scoped_content_object_rejects_non_member(nonmember_user, org):
+def test_resolve_workspace_scoped_content_object_rejects_non_member(
+    nonmember_user, org
+):
     contact = Contact.objects.create(
         display_name="Jane", organization=org, creator=nonmember_user
     )
 
     with pytest.raises(HttpError) as exc_info:
-        resolve_org_scoped_content_object(
+        resolve_workspace_scoped_content_object(
             DummyRequest(nonmember_user),
-            org.slug,
+            org.id,
             "contacts",
             "contact",
             contact.id,
@@ -96,11 +100,13 @@ def test_resolve_org_scoped_content_object_rejects_non_member(nonmember_user, or
 
 
 @pytest.mark.django_db
-def test_resolve_org_scoped_content_object_unknown_type_raises_404(member_user, org):
+def test_resolve_workspace_scoped_content_object_unknown_type_raises_404(
+    member_user, org
+):
     with pytest.raises(HttpError) as exc_info:
-        resolve_org_scoped_content_object(
+        resolve_workspace_scoped_content_object(
             DummyRequest(member_user),
-            org.slug,
+            org.id,
             "contacts",
             "missingmodel",
             1,
@@ -110,13 +116,13 @@ def test_resolve_org_scoped_content_object_unknown_type_raises_404(member_user, 
 
 
 @pytest.mark.django_db
-def test_resolve_org_scoped_content_object_rejects_installed_but_unapproved_model(
+def test_resolve_workspace_scoped_content_object_rejects_installed_but_unapproved_model(
     member_user, org
 ):
     with pytest.raises(HttpError) as exc_info:
-        resolve_org_scoped_content_object(
+        resolve_workspace_scoped_content_object(
             DummyRequest(member_user),
-            org.slug,
+            org.id,
             "accounts",
             "user",
             org.pk,
@@ -126,11 +132,13 @@ def test_resolve_org_scoped_content_object_rejects_installed_but_unapproved_mode
 
 
 @pytest.mark.django_db
-def test_resolve_org_scoped_content_object_missing_object_raises_404(member_user, org):
+def test_resolve_workspace_scoped_content_object_missing_object_raises_404(
+    member_user, org
+):
     with pytest.raises(HttpError) as exc_info:
-        resolve_org_scoped_content_object(
+        resolve_workspace_scoped_content_object(
             DummyRequest(member_user),
-            org.slug,
+            org.id,
             "contacts",
             "contact",
             999999,

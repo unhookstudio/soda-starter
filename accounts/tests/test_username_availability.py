@@ -15,7 +15,7 @@ def auth_headers(api_client, make_auth_headers):
 @pytest.mark.django_db
 def test_check_username_hardcoded(api_client, auth_headers):
     # Hardcoded test: just check that ?username=he returns 200
-    url = "/users/check_username"
+    url = "/users/username-availability"
     params = {"username": "he"}
     print(f"Requesting: {url}?{urlencode(params)}")
     response = api_client.get(f"{url}?{urlencode(params)}", headers=auth_headers)
@@ -25,7 +25,7 @@ def test_check_username_hardcoded(api_client, auth_headers):
 
 @pytest.mark.django_db
 def test_check_username_available(api_client, auth_headers):
-    url = "/users/check_username"
+    url = "/users/username-availability"
     params = {"username": "unique_username"}
     print(f"Requesting: {url}?{urlencode(params)}")
     response = api_client.get(f"{url}?{urlencode(params)}", headers=auth_headers)
@@ -40,7 +40,7 @@ def test_check_username_taken(api_client, auth_headers):
     user = User.objects.create_user(
         email="taken@example.com", password="pw", username="takenuser"
     )
-    url = "/users/check_username"
+    url = "/users/username-availability"
     params = {"username": "takenuser"}
     print(f"Requesting: {url}?{urlencode(params)}")
     response = api_client.get(f"{url}?{urlencode(params)}", headers=auth_headers)
@@ -53,7 +53,7 @@ def test_check_username_taken(api_client, auth_headers):
 
 @pytest.mark.django_db
 def test_check_username_requires_authentication(api_client):
-    response = api_client.get("/users/check_username?username=someone")
+    response = api_client.get("/users/username-availability?username=someone")
     assert response.status_code == 401
 
 
@@ -61,7 +61,7 @@ def test_check_username_requires_authentication(api_client):
 def test_check_username_is_throttled(api_client, auth_headers):
     for attempt in range(31):
         response = api_client.get(
-            f"/users/check_username?username=candidate{attempt}",
+            f"/users/username-availability?username=candidate{attempt}",
             headers=auth_headers,
         )
 

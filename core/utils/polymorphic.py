@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404
 from ninja.errors import HttpError
 
 from organizations.models import Organization
-from organizations.scope import OrgScope, resolve_org_scope
+from organizations.scope import WorkspaceScope, resolve_workspace_scope
 
 ATTACHABLE_MODELS = frozenset(
     {
@@ -21,8 +21,8 @@ ATTACHABLE_MODELS = frozenset(
 
 
 @dataclass(frozen=True)
-class OrgScopedContentObject:
-    scope: OrgScope
+class WorkspaceScopedContentObject:
+    scope: WorkspaceScope
     organization: Organization
     content_type: ContentType
     model_class: type[models.Model]
@@ -46,15 +46,15 @@ def resolve_content_type(app_label: str, model: str) -> ContentType:
         raise HttpError(404, "Object type not found") from exc
 
 
-def resolve_org_scoped_content_object(
+def resolve_workspace_scoped_content_object(
     request: HttpRequest,
-    org_slug: str,
+    workspace_id: UUID,
     app_label: str,
     model: str,
     obj_id: UUID,
-) -> OrgScopedContentObject:
-    scope = resolve_org_scope(request, org_slug)
-    org = scope.org
+) -> WorkspaceScopedContentObject:
+    scope = resolve_workspace_scope(request, workspace_id)
+    workspace = scope.workspace
     content_type = resolve_content_type(app_label, model)
     model_class = apps.get_model(app_label, model)
     if model_class is None:
@@ -68,11 +68,11 @@ def resolve_org_scoped_content_object(
         if isinstance(obj, Organization)
         else getattr(obj, "organization_id", None)
     )
-    if object_org_id != org.pk:
+    if object_org_id != workspace.pk:
         raise HttpError(404, "Object not found")
-    return OrgScopedContentObject(
+    return WorkspaceScopedContentObject(
         scope=scope,
-        organization=org,
+        organization=workspace,
         content_type=content_type,
         model_class=model_class,
         obj=obj,

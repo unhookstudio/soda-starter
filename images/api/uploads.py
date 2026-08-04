@@ -2,6 +2,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from typing import List
+from uuid import UUID
 
 from django.conf import settings
 from ninja import File, Status, UploadedFile
@@ -17,7 +18,7 @@ from images.schemas import ImageOut
 from images.serializers import serialize_image
 from images.services import ImageUploadFailed, upload_image_file
 from images.throttles import bulk_upload_throttle, upload_throttle
-from organizations.scope import resolve_org_scope
+from organizations.scope import resolve_workspace_scope
 
 
 @dataclass(frozen=True)
@@ -124,14 +125,14 @@ def _request_upload_files(request) -> list:
 
 
 @router.post(
-    "/orgs/{org_slug}/images/",
-    response=ImageOut,
+    "/workspaces/{workspace_id}/images",
+    response={201: ImageOut},
     auth=JWTAuth(),
     throttle=[upload_throttle],
 )
-def upload_image(request, org_slug: str, file: UploadedFile = File(...)):
-    scope = resolve_org_scope(request, org_slug).require_write()
-    org = scope.org
+def upload_image(request, workspace_id: UUID, file: UploadedFile = File(...)):
+    scope = resolve_workspace_scope(request, workspace_id).require_write()
+    org = scope.workspace
     user = scope.user
     error = validate_image_upload(file)
     if error:
@@ -149,18 +150,18 @@ def upload_image(request, org_slug: str, file: UploadedFile = File(...)):
         raise HttpError(400, str(exc)) from exc
     except ImageUploadFailed as exc:
         raise HttpError(503, "Image upload is temporarily unavailable.") from exc
-    return serialize_image(img)
+    return Status(201, serialize_image(img))
 
 
 @router.post(
-    "/orgs/{org_slug}/bulk-upload/",
+    "/workspaces/{workspace_id}/images/bulk-upload",
     response=List[BulkUploadResponse],
     auth=JWTAuth(),
     throttle=[bulk_upload_throttle],
 )
-def bulk_upload_images(request, org_slug: str):
-    scope = resolve_org_scope(request, org_slug).require_write()
-    org = scope.org
+def bulk_upload_images(request, workspace_id: UUID):
+    scope = resolve_workspace_scope(request, workspace_id).require_write()
+    org = scope.workspace
     user = scope.user
     files = _request_upload_files(request)
     if not files:

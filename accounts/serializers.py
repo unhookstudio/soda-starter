@@ -16,8 +16,6 @@ def serialize_user_profile(
         last_name=user.last_name,
         username=user.username,
         slug=user.slug,
-        org_name=organization.name if organization else "",
-        org_slug=organization.slug if organization else "",
         location=user.location,
         about=user.about,
         has_avatar=bool(user.avatar_path),

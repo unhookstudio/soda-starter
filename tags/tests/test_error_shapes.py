@@ -23,14 +23,14 @@ def test_update_tag_duplicate_name_error_shape():
 
     client = Client()
     resp = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": "tagerr@example.com", "password": "pw"},
         content_type="application/json",
     )
-    access = resp.json()["access"]
+    access = resp.json()["access_token"]
 
     resp2 = client.patch(
-        f"/api/v1/orgs/{org.slug}/tags/{t1.id}/",
+        f"/api/v1/workspaces/{org.id}/tags/{t1.id}",
         data={"name": "beta"},
         content_type="application/json",
         HTTP_AUTHORIZATION=f"Bearer {access}",

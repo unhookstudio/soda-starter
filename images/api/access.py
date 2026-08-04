@@ -5,6 +5,7 @@ from uuid import UUID
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from ninja import Status
 from ninja.errors import HttpError
 
 from core.authentication import JWTAuth
@@ -12,14 +13,13 @@ from images.api.common import router
 from images.models import Image, ImageShareLink, hash_share_token
 from images.schemas import (
     CreateImageShareIn,
-    DetailResponse,
     ImageShareOut,
     ImageSignedUrlsOut,
     ResolveImageShareIn,
 )
 from images.services import sign_image_variant_urls
 from images.throttles import share_link_throttle
-from organizations.scope import resolve_org_scope
+from organizations.scope import resolve_workspace_scope
 
 
 def serialize_share_link(share_link: ImageShareLink, raw_token: str) -> ImageShareOut:
@@ -34,24 +34,26 @@ def serialize_share_link(share_link: ImageShareLink, raw_token: str) -> ImageSha
 
 
 @router.get(
-    "/orgs/{org_slug}/images/{image_id}/urls",
+    "/workspaces/{workspace_id}/images/{image_id}/signed-urls",
     response=ImageSignedUrlsOut,
     auth=JWTAuth(),
 )
-def get_image_signed_urls(request, org_slug: str, image_id: UUID):
-    scope = resolve_org_scope(request, org_slug)
-    image = get_object_or_404(Image, id=image_id, organization=scope.org)
+def get_image_signed_urls(request, workspace_id: UUID, image_id: UUID):
+    scope = resolve_workspace_scope(request, workspace_id)
+    image = get_object_or_404(Image, id=image_id, organization=scope.workspace)
     return sign_image_variant_urls(image)
 
 
 @router.post(
-    "/orgs/{org_slug}/images/{image_id}/shares", response=ImageShareOut, auth=JWTAuth()
+    "/workspaces/{workspace_id}/images/{image_id}/shares",
+    response={201: ImageShareOut},
+    auth=JWTAuth(),
 )
 def create_image_share(
-    request, org_slug: str, image_id: UUID, data: CreateImageShareIn
+    request, workspace_id: UUID, image_id: UUID, data: CreateImageShareIn
 ):
-    scope = resolve_org_scope(request, org_slug).require_write()
-    org = scope.org
+    scope = resolve_workspace_scope(request, workspace_id).require_write()
+    org = scope.workspace
     user = scope.user
     image = get_object_or_404(Image, id=image_id, organization=org)
     default_ttl = int(
@@ -67,24 +69,24 @@ def create_image_share(
         created_by=user,
         expires_at=timezone.now() + timedelta(seconds=ttl) if ttl else None,
     )
-    return serialize_share_link(share_link, raw_token)
+    return Status(201, serialize_share_link(share_link, raw_token))
 
 
 @router.delete(
-    "/orgs/{org_slug}/images/{image_id}/shares/{share_id}",
-    response={200: DetailResponse},
+    "/workspaces/{workspace_id}/images/{image_id}/shares/{share_id}",
+    response={204: None},
     auth=JWTAuth(),
 )
-def revoke_image_share(request, org_slug: str, image_id: UUID, share_id: UUID):
-    scope = resolve_org_scope(request, org_slug).require_write()
-    image = get_object_or_404(Image, id=image_id, organization=scope.org)
+def revoke_image_share(request, workspace_id: UUID, image_id: UUID, share_id: UUID):
+    scope = resolve_workspace_scope(request, workspace_id).require_write()
+    image = get_object_or_404(Image, id=image_id, organization=scope.workspace)
     share_link = get_object_or_404(ImageShareLink, id=share_id, image=image)
     share_link.revoke()
-    return DetailResponse(detail="ok")
+    return Status(204, None)
 
 
 @router.post(
-    "/shared/images/resolve/",
+    "/image-shares/resolve",
     response=ImageSignedUrlsOut,
     auth=None,
     throttle=[share_link_throttle],

@@ -22,18 +22,18 @@ def create_test_image_file(color=(50, 50, 200), size=(100, 100), name="t.png"):
 def get_access_token(email, password):
     client = Client()
     resp = client.post(
-        "/api/v1/token/pair",
+        "/api/v1/auth/login",
         data={"email": email, "password": password},
         content_type="application/json",
     )
     if resp.status_code != 200:
         # Fallback to form
         resp = client.post(
-            "/api/v1/token/pair",
+            "/api/v1/auth/login",
             data={"email": email, "password": password},
             content_type="application/x-www-form-urlencoded",
         )
-    return resp.json().get("access")
+    return resp.json().get("access_token")
 
 
 def _enable_test_throttling(instance_names, monkeypatch):
@@ -81,10 +81,10 @@ def test_single_upload_rate_limited(monkeypatch):
     access = get_access_token("rl@example.com", "pw")
     assert access
 
-    url = f"/api/v1/orgs/{org.slug}/images/"
+    url = f"/api/v1/workspaces/{org.id}/images"
     file1 = create_test_image_file(name="a.png")
     r1 = client.post(url, {"file": file1}, HTTP_AUTHORIZATION=f"Bearer {access}")
-    assert r1.status_code == 200, r1.content
+    assert r1.status_code == 201, r1.content
 
     file2 = create_test_image_file(name="b.png")
     r2 = client.post(url, {"file": file2}, HTTP_AUTHORIZATION=f"Bearer {access}")
@@ -106,7 +106,7 @@ def test_bulk_upload_rate_limited(monkeypatch):
     access = get_access_token("rlbulk@example.com", "pw")
     assert access
 
-    url = f"/api/v1/orgs/{org.slug}/bulk-upload/"
+    url = f"/api/v1/workspaces/{org.id}/images/bulk-upload"
     files1 = {"files": [create_test_image_file(name="c1.png")]}
     r1 = client.post(url, files1, HTTP_AUTHORIZATION=f"Bearer {access}")
     assert r1.status_code == 200, r1.content

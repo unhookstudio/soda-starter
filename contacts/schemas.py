@@ -57,9 +57,8 @@ class ContactOut(BaseModel):
     phone: Optional[str] = None
     notes: Optional[str] = None
     has_avatar: bool
-    # Map model attributes to the public organization and creator fields.
-    organization: str = Field(validation_alias="organization_slug")
-    creator: Optional[str] = Field(default=None, validation_alias="creator_slug")
+    workspace_id: UUID = Field(validation_alias="organization_id")
+    creator_id: UUID | None = Field(default=None, validation_alias="creator_id")
     tags: list[TagOut]
     created_at: datetime
     updated_at: datetime

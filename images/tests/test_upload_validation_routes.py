@@ -33,7 +33,7 @@ def test_single_upload_rejects_oversize_multipart_before_processing(
 
     with patch("images.api.uploads.upload_image_file") as upload:
         response = api_client.post(
-            f"/orgs/{organization.slug}/images/",
+            f"/workspaces/{organization.id}/images",
             data={},
             FILES={"file": uploaded_file("large.png", b"x" * 6, "image/png")},
             headers=headers,
@@ -53,7 +53,7 @@ def test_single_upload_rejects_invalid_multipart_mime(
 
     with patch("images.api.uploads.upload_image_file") as upload:
         response = api_client.post(
-            f"/orgs/{organization.slug}/images/",
+            f"/workspaces/{organization.id}/images",
             data={},
             FILES={
                 "file": uploaded_file("document.pdf", b"%PDF-1.4", "application/pdf")
@@ -79,7 +79,7 @@ def test_bulk_upload_rejects_oversize_multipart_before_processing(
 
     with patch("images.api.uploads.upload_image_file") as upload:
         response = api_client.post(
-            f"/orgs/{organization.slug}/bulk-upload/",
+            f"/workspaces/{organization.id}/images/bulk-upload",
             data={},
             FILES={"files": files},
             headers=headers,
@@ -103,7 +103,7 @@ def test_bulk_upload_rejects_multipart_file_count_before_processing(
 
     with patch("images.api.uploads.upload_image_file") as upload:
         response = api_client.post(
-            f"/orgs/{organization.slug}/bulk-upload/",
+            f"/workspaces/{organization.id}/images/bulk-upload",
             data={},
             FILES={"files": files},
             headers=headers,
@@ -127,7 +127,7 @@ def test_bulk_upload_rejects_multipart_aggregate_size_before_processing(
 
     with patch("images.api.uploads.upload_image_file") as upload:
         response = api_client.post(
-            f"/orgs/{organization.slug}/bulk-upload/",
+            f"/workspaces/{organization.id}/images/bulk-upload",
             data={},
             FILES={"files": files},
             headers=headers,
