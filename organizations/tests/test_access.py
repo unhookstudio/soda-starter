@@ -106,7 +106,7 @@ def test_platform_admin_membership_does_not_log_cross_tenant_access():
         email="scope-member-super@example.com", password="pw"
     )
     org = Organization.objects.create(
-        name="MemberSuper", slug="member-super", type="group"
+        name="MemberSuper", slug="member-super", kind="shared"
     )
     Membership.objects.create(user=superuser, organization=org, role="owner")
 

@@ -130,7 +130,7 @@ def image_storage_keys(image: Image) -> list[str]:
     ]
 
 
-def delete_image_record(image: Image) -> int:
+def delete_image_record(image: Image) -> uuid.UUID:
     image_id = image.pk
     keys = image_storage_keys(image)
     with transaction.atomic():

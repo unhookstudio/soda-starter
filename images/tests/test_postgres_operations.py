@@ -54,7 +54,7 @@ def run_concurrently(*operations: Callable[[], None]) -> list[BaseException | No
 
 def image_operation_fixture():
     user = User.objects.create_user(email="image-locks@example.com", password="pw")
-    organization = Organization.objects.get(type="personal", creator=user)
+    organization = Organization.objects.get(kind="personal", creator=user)
     content_type = ContentType.objects.get_for_model(Organization)
     images = [
         Image.objects.create(organization=organization, creator=user) for _ in range(3)

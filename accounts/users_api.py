@@ -27,16 +27,18 @@ users_router = Router()
 users_router.add_router("/", username_router, tags=["users"])
 
 
-def serialize_profile_with_personal_org(user: User) -> UserProfileOut:
-    org = (
-        Organization.objects.filter(
-            memberships__user=user,
-            memberships__role="owner",
-            type="personal",
+def serialize_profile_with_current_org(user: User) -> UserProfileOut:
+    org = user.current_organization
+    if org is None:
+        org = (
+            Organization.objects.filter(
+                memberships__user=user,
+                memberships__role="owner",
+                kind="personal",
+            )
+            .order_by("id")
+            .first()
         )
-        .order_by("id")
-        .first()
-    )
     return serialize_user_profile(user, org)
 
 
@@ -106,7 +108,7 @@ def get_user_avatar(request, slug: str):
 @users_router.get("/me", response=UserProfileOut, auth=JWTAuth())
 def get_me(request):
     user = get_request_user(request)
-    return serialize_profile_with_personal_org(user)
+    return serialize_profile_with_current_org(user)
 
 
 @users_router.patch("/me", response=UserProfileOut, auth=JWTAuth())
@@ -115,7 +117,7 @@ def update_me(request, data: UserProfileUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(user, field, value)
     user.save()
-    return serialize_profile_with_personal_org(user)
+    return serialize_profile_with_current_org(user)
 
 
 @users_router.get(

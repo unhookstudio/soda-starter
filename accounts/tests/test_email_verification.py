@@ -69,7 +69,7 @@ def test_verify_registration_creates_verified_user_and_personal_org(api_client):
     user = User.objects.get(email="verifyuser@example.com")
     assert user.email_verified is True
     assert user.check_password("securepassword123")
-    assert Organization.objects.filter(type="personal", creator=user).exists()
+    assert Organization.objects.filter(kind="personal", creator=user).exists()
     assert not PendingRegistration.objects.filter(email=user.email).exists()
     assert user.auth_sessions.get().device_name == "iPhone"
 

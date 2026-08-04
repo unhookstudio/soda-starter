@@ -28,7 +28,7 @@ def test_outsider_cannot_use_any_contact_read_or_mutation_route(api_client):
         email="contact-outsider@example.com", password="pw"
     )
     organization = Organization.objects.create(
-        name="Contact Permissions", slug="contact-permissions", type="group"
+        name="Contact Permissions", slug="contact-permissions", kind="shared"
     )
     Membership.objects.create(user=owner, organization=organization, role="owner")
     contact = Contact.objects.create(

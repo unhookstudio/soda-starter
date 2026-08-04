@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -46,7 +47,7 @@ class ContactReplace(ContactIn):
 
 
 class ContactOut(BaseModel):
-    id: int
+    id: UUID
     display_name: str
     slug: str
     first_name: Optional[str] = None

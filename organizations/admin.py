@@ -5,8 +5,8 @@ from .models import ExportJob, Membership, Organization
 
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "slug", "type", "creator_id", "created_at")
-    list_filter = ("type",)
+    list_display = ("id", "name", "slug", "kind", "creator_id", "created_at")
+    list_filter = ("kind",)
     search_fields = ("name", "slug", "creator__email", "creator__username")
     raw_id_fields = ("creator",)
     list_select_related = ("creator",)

@@ -30,7 +30,7 @@ def test_admin_single_delete_uses_account_lifecycle(
     )
     user.avatar_path = avatar_path
     user.save(update_fields=["avatar_path", "updated_at"])
-    personal_org_id = Organization.objects.get(type="personal", creator=user).pk
+    personal_org_id = Organization.objects.get(kind="personal", creator=user).pk
     user_admin = UserAdmin(User, admin.site)
 
     with django_capture_on_commit_callbacks(execute=True):
@@ -45,7 +45,7 @@ def test_admin_single_delete_uses_account_lifecycle(
 def test_admin_single_delete_rejects_last_group_owner():
     user = User.objects.create_user(email="last-owner@example.com", password="pw")
     organization = Organization.objects.create(
-        name="Owned group", slug="owned-group", type="group"
+        name="Owned group", slug="owned-group", kind="shared"
     )
     Membership.objects.create(user=user, organization=organization, role="owner")
     user_admin = UserAdmin(User, admin.site)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
+from uuid import UUID
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -46,7 +47,7 @@ class RegistrationDelivery:
 
 @dataclass(frozen=True)
 class PasswordResetDelivery:
-    user_id: int
+    user_id: UUID
     email: str
     display_name: str
     raw_token: str
@@ -54,7 +55,7 @@ class PasswordResetDelivery:
 
 @dataclass(frozen=True)
 class EmailChangeResult:
-    user_id: int
+    user_id: UUID
     old_email: str
     new_email: str
 
@@ -62,7 +63,7 @@ class EmailChangeResult:
 @dataclass(frozen=True)
 class EmailChangeDelivery:
     pending_id: int
-    user_id: int
+    user_id: UUID
     old_email: str
     new_email: str
     display_name: str
@@ -145,7 +146,7 @@ def confirm_registration(*, raw_token: str, password: str) -> User:
 
 
 @transaction.atomic
-def change_password(*, user_id: int, old_password: str, new_password: str) -> None:
+def change_password(*, user_id: UUID, old_password: str, new_password: str) -> None:
     user = User.objects.select_for_update().get(pk=user_id)
     if not user.check_password(old_password):
         raise AccountOperationError("Old password is incorrect")
@@ -187,7 +188,7 @@ def rotate_password_reset(
 
 def request_email_change(
     *,
-    user_id: int,
+    user_id: UUID,
     new_email: str,
     current_password: str,
     expiry_hours: int,

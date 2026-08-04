@@ -13,9 +13,9 @@ def test_patch_username_success(api_client):
         email="me@example.com", password="testpass", username="oldname"
     )
     # Clean up any existing personal orgs for this user
-    Organization.objects.filter(memberships__user=user, type="personal").delete()
+    Organization.objects.filter(memberships__user=user, kind="personal").delete()
     org = Organization.objects.create(
-        name="oldname", slug="oldname-success", type="personal", creator=user
+        name="oldname", slug="oldname-success", kind="personal", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     response = api_client.post(
@@ -55,9 +55,9 @@ def test_patch_username_taken(api_client):
         email="other@example.com", password="testpass", username="takenname"
     )
     # Clean up any existing personal orgs for this user
-    Organization.objects.filter(memberships__user=user1, type="personal").delete()
+    Organization.objects.filter(memberships__user=user1, kind="personal").delete()
     org = Organization.objects.create(
-        name="oldname", slug="oldname-taken", type="personal", creator=user1
+        name="oldname", slug="oldname-taken", kind="personal", creator=user1
     )
     Membership.objects.create(user=user1, organization=org, role="owner")
     response = api_client.post(
@@ -78,9 +78,9 @@ def test_patch_username_empty(api_client):
     user = create_test_user(
         email="me2@example.com", password="testpass", username="oldname2"
     )
-    Organization.objects.filter(memberships__user=user, type="personal").delete()
+    Organization.objects.filter(memberships__user=user, kind="personal").delete()
     org = Organization.objects.create(
-        name="oldname2", slug="oldname2-empty", type="personal", creator=user
+        name="oldname2", slug="oldname2-empty", kind="personal", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     response = api_client.post(
@@ -101,9 +101,9 @@ def test_patch_username_rejects_invalid_characters(api_client):
     user = create_test_user(
         email="invalidname@example.com", password="testpass", username="oldname"
     )
-    Organization.objects.filter(memberships__user=user, type="personal").delete()
+    Organization.objects.filter(memberships__user=user, kind="personal").delete()
     org = Organization.objects.create(
-        name="oldname", slug="oldname-invalid", type="personal", creator=user
+        name="oldname", slug="oldname-invalid", kind="personal", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     response = api_client.post(
@@ -125,7 +125,7 @@ def test_patch_username_org_missing(api_client):
         email="me3@example.com", password="testpass", username="oldname3"
     )
     # Ensure no personal org exists for user
-    Organization.objects.filter(memberships__user=user, type="personal").delete()
+    Organization.objects.filter(memberships__user=user, kind="personal").delete()
     response = api_client.post(
         "/token/pair", json={"email": "me3@example.com", "password": "testpass"}
     )

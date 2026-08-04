@@ -1,4 +1,5 @@
 import io
+import uuid
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -82,7 +83,7 @@ def test_list_images_for_org():
     assert "items" in data
     assert data["count"] == 2
     ids = {item["id"] for item in data["items"]}
-    assert img1.id in ids and img2.id in ids
+    assert str(img1.id) in ids and str(img2.id) in ids
 
 
 @pytest.mark.django_db
@@ -196,7 +197,7 @@ def test_bulk_delete_images_reports_missing_ids():
     img = Image.objects.create(
         file=create_test_image_file(name="bdp.png"), organization=org, creator=user
     )
-    missing_id = img.id + 999
+    missing_id = uuid.uuid4()
     client = Client()
     access = get_access_token("bulkdelpartial@example.com", "pw")
 
@@ -210,8 +211,8 @@ def test_bulk_delete_images_reports_missing_ids():
     assert response.status_code == 400, response.content
     data = response.json()
     assert data["detail"] == "Some images could not be deleted"
-    assert data["deleted"] == [img.id]
-    assert data["failed"] == [{"id": missing_id, "reason": "not found"}]
+    assert data["deleted"] == [str(img.id)]
+    assert data["failed"] == [{"id": str(missing_id), "reason": "not found"}]
     assert not Image.objects.filter(id=img.id).exists()
 
 
@@ -222,7 +223,7 @@ def test_bulk_delete_images_reports_no_deletions():
         email="bulkdelnone@example.com", password="pw", email_verified=True
     )
     Membership.objects.create(user=user, organization=org, role="owner")
-    missing_id = 999999
+    missing_id = uuid.uuid4()
     client = Client()
     access = get_access_token("bulkdelnone@example.com", "pw")
 
@@ -237,7 +238,7 @@ def test_bulk_delete_images_reports_no_deletions():
     data = response.json()
     assert data["detail"] == "No images were deleted"
     assert data["deleted"] == []
-    assert data["failed"] == [{"id": missing_id, "reason": "not found"}]
+    assert data["failed"] == [{"id": str(missing_id), "reason": "not found"}]
 
 
 @pytest.mark.django_db
@@ -308,7 +309,7 @@ def test_list_images_for_object():
     data = response.json()
     assert "items" in data
     assert data["count"] == 1
-    assert data["items"][0]["image"]["id"] == img.id
+    assert data["items"][0]["image"]["id"] == str(img.id)
 
     # Cross-organization objects are hidden as not found.
     org2 = create_test_group(name="OtherOrg", slug="otherorg")
@@ -320,8 +321,9 @@ def test_list_images_for_object():
     assert response.status_code == 404
 
     # 404 if object does not exist
+    missing_object_id = uuid.uuid4()
     response = client.get(
-        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/999999/",
+        f"/api/v1/orgs/{org.slug}/images/{app_label}/{model}/{missing_object_id}/",
         HTTP_AUTHORIZATION=f"Bearer {access}",
     )
     assert response.status_code == 404
@@ -399,8 +401,8 @@ def test_attach_images_to_object():
     )
     assert response.status_code == 200
     data = response.json()
-    assert any(r["image"]["id"] == img.id for r in data) or any(
-        r["image"] == img.id for r in data
+    assert any(r["image"]["id"] == str(img.id) for r in data) or any(
+        r["image"] == str(img.id) for r in data
     )
 
     org2 = create_test_group(name="OtherOrg", slug="otherorg")

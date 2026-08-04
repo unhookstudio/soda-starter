@@ -20,7 +20,7 @@ def test_export_archive_contains_portable_data_and_media():
     organization = Organization.objects.create(
         name="Archive",
         slug="archive-group",
-        type="group",
+        kind="shared",
         creator=user,
     )
     Membership.objects.create(
@@ -69,10 +69,10 @@ def test_export_archive_contains_portable_data_and_media():
         assert archive.read(media_name) == b"image-bytes"
 
     assert data["format"] == "listening-journal-api-portability-export"
-    assert data["organization"]["id"] == organization.pk
-    assert data["memberships"][0]["user_id"] == user.pk
-    assert data["contacts"][0]["id"] == contact.pk
-    assert data["tags"][0]["id"] == tag.pk
-    assert data["tag_relations"][0]["object_id"] == contact.pk
-    assert data["images"][0]["id"] == image.pk
-    assert data["image_relations"][0]["image_id"] == image.pk
+    assert data["organization"]["id"] == str(organization.pk)
+    assert data["memberships"][0]["user_id"] == str(user.pk)
+    assert data["contacts"][0]["id"] == str(contact.pk)
+    assert data["tags"][0]["id"] == str(tag.pk)
+    assert data["tag_relations"][0]["object_id"] == str(contact.pk)
+    assert data["images"][0]["id"] == str(image.pk)
+    assert data["image_relations"][0]["image_id"] == str(image.pk)

@@ -29,6 +29,9 @@ def test_get_me_success(api_client):
     assert data["email"] == "me@example.com"
     assert data["first_name"] == "Test"
     assert data["last_name"] == "User"
+    assert data["theme"] == "system"
+    assert data["locale"] == "en"
+    assert data["current_workspace_id"] == str(user.current_organization_id)
 
 
 @pytest.mark.django_db
@@ -47,14 +50,18 @@ def test_patch_me_partial_update(settings, api_client):
     )
     access = response.json()["access"]
     headers = {"Authorization": f"Bearer {access}"}
-    # Partial update (only first_name)
+    # Partial profile and preference update.
     response = api_client.patch(
-        "/users/me", json={"first_name": "New"}, headers=headers
+        "/users/me",
+        json={"first_name": "New", "theme": "dark", "locale": "fr-FR"},
+        headers=headers,
     )
     assert response.status_code == 200
     data = response.json()
     assert data["first_name"] == "New"
     assert data["last_name"] == "Name"
+    assert data["theme"] == "dark"
+    assert data["locale"] == "fr-FR"
 
 
 @pytest.mark.django_db
@@ -70,8 +77,8 @@ def test_patch_me_invalid_data(settings, api_client):
     )
     access = response.json()["access"]
     headers = {"Authorization": f"Bearer {access}"}
-    # Too long first_name (assuming max_length=50)
-    long_name = "x" * 100
+    # Profile names follow the product's 120-character limit.
+    long_name = "x" * 121
     response = api_client.patch(
         "/users/me", json={"first_name": long_name}, headers=headers
     )

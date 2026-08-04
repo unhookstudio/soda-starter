@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
@@ -24,16 +25,16 @@ class TagUpdate(BaseModel):
 
 
 class TagOut(BaseModel):
-    id: int
+    id: UUID
     name: str
     slug: str
-    organization: int = Field(..., alias="organization_id")
+    organization: UUID = Field(..., alias="organization_id")
     model_config = ConfigDict(from_attributes=True)
 
 
 class TaggedItemOut(BaseModel):
     tag: TagOut
-    object_id: int
+    object_id: UUID
     content_type: str  # e.g. "contacts.contact"
     model_config = ConfigDict(from_attributes=True)
 

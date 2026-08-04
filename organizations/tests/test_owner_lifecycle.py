@@ -7,8 +7,8 @@ from organizations.models import Membership, Organization
 from organizations.services import (
     ActiveOwnerRequiredError,
     change_membership_role,
-    create_group_organization,
     create_personal_organization,
+    create_shared_organization,
     remove_membership,
 )
 
@@ -19,7 +19,7 @@ User = get_user_model()
 def test_group_creation_assigns_initial_owner_atomically():
     owner = User.objects.create_user(email="initial-owner@example.com", password="pw")
 
-    organization = create_group_organization(
+    organization = create_shared_organization(
         name="New group",
         slug="new-group",
         owner=owner,
@@ -34,7 +34,7 @@ def test_group_creation_assigns_initial_owner_atomically():
 def group_with_owner():
     owner = User.objects.create_user(email="owner-lifecycle@example.com", password="pw")
     organization = Organization.objects.create(
-        name="Owner lifecycle", slug="owner-lifecycle", type="group"
+        name="Owner lifecycle", slug="owner-lifecycle", kind="shared"
     )
     membership = Membership.objects.create(
         user=owner, organization=organization, role="owner"
@@ -109,7 +109,7 @@ def test_owner_can_be_deactivated_when_an_active_owner_remains(group_with_owner)
 @pytest.mark.django_db
 def test_personal_creator_membership_cannot_be_demoted_or_removed():
     owner = User.objects.create_user(email="personal-guard@example.com", password="pw")
-    organization = Organization.objects.get(type="personal", creator=owner)
+    organization = Organization.objects.get(kind="personal", creator=owner)
     membership = Membership.objects.get(organization=organization, user=owner)
 
     with pytest.raises(ActiveOwnerRequiredError):
@@ -124,7 +124,7 @@ def test_personal_creator_membership_cannot_be_demoted_or_removed():
 @pytest.mark.django_db
 def test_personal_org_lookup_repairs_missing_creator_membership():
     owner = User.objects.create_user(email="personal-repair@example.com", password="pw")
-    organization = Organization.objects.get(type="personal", creator=owner)
+    organization = Organization.objects.get(kind="personal", creator=owner)
     Membership.objects.filter(organization=organization, user=owner).delete()
 
     repaired = create_personal_organization(owner)
@@ -143,6 +143,6 @@ def test_creator_cannot_have_two_personal_organizations():
         Organization.objects.create(
             name="Duplicate personal",
             slug="duplicate-personal",
-            type="personal",
+            kind="personal",
             creator=owner,
         )

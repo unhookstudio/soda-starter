@@ -1,10 +1,14 @@
 from django.db import migrations
 
 INSTALL_SQL = """
-CREATE OR REPLACE FUNCTION organizations_check_active_owner(org_id bigint)
+CREATE OR REPLACE FUNCTION organizations_check_active_owner(org_id uuid)
 RETURNS void AS $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM organizations_organization WHERE id = org_id AND type = 'group')
+    IF EXISTS (
+        SELECT 1
+        FROM organizations_organization
+        WHERE id = org_id AND kind = 'shared'
+    )
        AND NOT EXISTS (
            SELECT 1
            FROM organizations_membership membership
@@ -16,7 +20,8 @@ BEGIN
     THEN
         RAISE EXCEPTION USING
             ERRCODE = '23514',
-            MESSAGE = 'group organization ' || org_id || ' requires at least one active owner';
+            MESSAGE = 'shared organization ' || org_id ||
+                ' requires at least one active owner';
     END IF;
 END;
 $$ LANGUAGE plpgsql;
@@ -45,7 +50,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION organizations_user_owner_guard()
 RETURNS trigger AS $$
 DECLARE
-    org_id bigint;
+    org_id uuid;
 BEGIN
     IF OLD.is_active AND NOT NEW.is_active THEN
         FOR org_id IN
@@ -78,12 +83,14 @@ EXECUTE FUNCTION organizations_user_owner_guard();
 
 UNINSTALL_SQL = """
 DROP TRIGGER IF EXISTS organizations_user_active_owner_guard ON accounts_user;
-DROP TRIGGER IF EXISTS organizations_org_active_owner_guard ON organizations_organization;
-DROP TRIGGER IF EXISTS organizations_membership_active_owner_guard ON organizations_membership;
+DROP TRIGGER IF EXISTS organizations_org_active_owner_guard
+    ON organizations_organization;
+DROP TRIGGER IF EXISTS organizations_membership_active_owner_guard
+    ON organizations_membership;
 DROP FUNCTION IF EXISTS organizations_user_owner_guard();
 DROP FUNCTION IF EXISTS organizations_org_owner_guard();
 DROP FUNCTION IF EXISTS organizations_membership_owner_guard();
-DROP FUNCTION IF EXISTS organizations_check_active_owner(bigint);
+DROP FUNCTION IF EXISTS organizations_check_active_owner(uuid);
 """
 
 
@@ -91,7 +98,7 @@ def require_existing_active_owners(apps, schema_editor):
     Organization = apps.get_model("organizations", "Organization")
     Membership = apps.get_model("organizations", "Membership")
     orphan_ids = []
-    for organization_id in Organization.objects.filter(type="group").values_list(
+    for organization_id in Organization.objects.filter(kind="shared").values_list(
         "id", flat=True
     ):
         if not Membership.objects.filter(
@@ -104,8 +111,8 @@ def require_existing_active_owners(apps, schema_editor):
                 break
     if orphan_ids:
         raise RuntimeError(
-            "Cannot install the active-owner invariant; group organizations without "
-            f"an active owner exist: {orphan_ids}"
+            "Cannot install the active-owner invariant; shared organizations "
+            f"without an active owner exist: {orphan_ids}"
         )
     if schema_editor.connection.vendor == "postgresql":
         schema_editor.execute(INSTALL_SQL)
@@ -118,11 +125,8 @@ def remove_owner_guards(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("accounts", "0002_harden_registration_and_email_changes"),
-        (
-            "organizations",
-            "0002_exportjob_attempt_count_exportjob_heartbeat_at_and_more",
-        ),
+        ("accounts", "0002_initial"),
+        ("organizations", "0001_initial"),
     ]
 
     operations = [

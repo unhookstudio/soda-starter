@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -19,6 +20,7 @@ def image_upload_to(instance, filename):
 
 
 class Image(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     file = models.ImageField(upload_to=image_upload_to)
     description = models.TextField(blank=True, default="")
     alt_text = models.CharField(max_length=120, blank=True, default="")
@@ -49,9 +51,10 @@ class Image(models.Model):
 
 
 class PolymorphicImageRelation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     image = models.ForeignKey(Image, on_delete=models.CASCADE, related_name="relations")
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
+    object_id = models.UUIDField()
     content_object = GenericForeignKey("content_type", "object_id")
 
     is_cover = models.BooleanField(default=False)
@@ -89,6 +92,7 @@ def hash_share_token(token: str) -> str:
 
 
 class ImageShareLink(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     image = models.ForeignKey(
         Image, on_delete=models.CASCADE, related_name="share_links"
     )

@@ -8,6 +8,7 @@ from django.contrib.auth.models import (
     BaseUserManager,
     PermissionsMixin,
 )
+from django.core.validators import RegexValidator
 from django.db import IntegrityError, models, transaction
 from django.db.models.functions import Lower
 from django.utils import timezone
@@ -137,17 +138,39 @@ class PendingRegistration(models.Model):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    class Theme(models.TextChoices):
+        SYSTEM = "system", "System"
+        LIGHT = "light", "Light"
+        DARK = "dark", "Dark"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     username = models.CharField(max_length=50, unique=True, blank=True)
     slug = models.SlugField(unique=True, blank=True)
-    first_name = models.CharField(max_length=50, blank=True)
-    last_name = models.CharField(max_length=50, blank=True)
+    first_name = models.CharField(max_length=120, blank=True)
+    last_name = models.CharField(max_length=120, blank=True)
     location = models.CharField(max_length=100, blank=True)
     about = models.TextField(blank=True)
     avatar_path = models.TextField(blank=True, null=True)
     notification_preferences = models.JSONField(default=dict)
-    preferred_theme = models.CharField(max_length=16, default="light")
-    preferred_language = models.CharField(max_length=16, default="en")
+    theme = models.CharField(max_length=16, choices=Theme.choices, default=Theme.SYSTEM)
+    locale = models.CharField(
+        max_length=35,
+        default="en",
+        validators=[
+            RegexValidator(
+                regex=r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+                message="Enter a valid locale.",
+            )
+        ],
+    )
+    current_organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preferred_by_users",
+    )
     finished_onboarding = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)

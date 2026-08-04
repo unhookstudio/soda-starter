@@ -32,7 +32,7 @@ class UserAdmin(BaseUserAdmin):
         "is_active",
         "created_at",
     )
-    list_filter = ("is_staff", "is_active", "preferred_language", "preferred_theme")
+    list_filter = ("is_staff", "is_active", "locale", "theme")
     search_fields = ("email", "username", "first_name", "last_name")
     ordering = ("id",)
     fieldsets = (
@@ -56,8 +56,9 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "notification_preferences",
-                    "preferred_theme",
-                    "preferred_language",
+                    "theme",
+                    "locale",
+                    "current_organization",
                     "finished_onboarding",
                 )
             },

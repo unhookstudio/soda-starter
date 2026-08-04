@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
@@ -6,6 +8,7 @@ from tags.models import TaggedItem
 
 
 class Contact(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     display_name = models.CharField(max_length=255)
     slug = models.SlugField(blank=True)
     first_name = models.CharField(max_length=255, blank=True, default="")

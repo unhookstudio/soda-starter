@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 
 from ninja import Field, Schema
 from pydantic import ConfigDict
@@ -113,10 +114,10 @@ class PasswordResetSchema(Schema):
 
 
 class UserProfileOut(Schema):
-    id: int
+    id: UUID
     email: str
-    first_name: str = Field(..., max_length=50)
-    last_name: str = Field(..., max_length=50)
+    first_name: str = Field(..., max_length=120)
+    last_name: str = Field(..., max_length=120)
     username: str = Field(..., max_length=50)
     slug: str
     org_name: str
@@ -125,20 +126,26 @@ class UserProfileOut(Schema):
     about: Optional[str]
     has_avatar: bool
     notification_preferences: Optional[dict]
-    preferred_theme: str
-    preferred_language: str
+    theme: str
+    locale: str
+    current_workspace_id: Optional[UUID] = None
     finished_onboarding: bool
     email_verified: bool
     created_at: Optional[datetime]
 
 
 class UserProfileUpdate(Schema):
-    first_name: Optional[str] = Field(None, max_length=50)
-    last_name: Optional[str] = Field(None, max_length=50)
+    first_name: Optional[str] = Field(None, max_length=120)
+    last_name: Optional[str] = Field(None, max_length=120)
     location: Optional[str] = None
     about: Optional[str] = None
-    preferred_theme: Optional[str] = None
-    preferred_language: Optional[str] = None
+    theme: Optional[str] = Field(None, pattern="^(system|light|dark)$")
+    locale: Optional[str] = Field(
+        None,
+        min_length=2,
+        max_length=35,
+        pattern=r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+    )
     model_config = ConfigDict(extra="forbid")
 
 

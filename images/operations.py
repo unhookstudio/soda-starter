@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models, transaction
@@ -23,7 +24,7 @@ class ImageOwnershipError(ImageOperationError):
 @dataclass(frozen=True)
 class AttachImagesResult:
     relations: list[PolymorphicImageRelation]
-    attached_image_ids: list[int]
+    attached_image_ids: list[UUID]
 
 
 def _lock_target(target: models.Model) -> None:
@@ -31,7 +32,7 @@ def _lock_target(target: models.Model) -> None:
 
 
 def _locked_relations(
-    *, content_type: ContentType, object_id: int
+    *, content_type: ContentType, object_id: UUID
 ) -> list[PolymorphicImageRelation]:
     return list(
         PolymorphicImageRelation.objects.select_for_update()
@@ -42,7 +43,7 @@ def _locked_relations(
 
 
 def _images_in_request_order(
-    *, organization_id: int, image_ids: list[int]
+    *, organization_id: UUID, image_ids: list[UUID]
 ) -> list[Image]:
     images_by_id = {
         image.pk: image
@@ -62,10 +63,10 @@ def _images_in_request_order(
 @transaction.atomic
 def attach_images_to_object(
     *,
-    organization_id: int,
+    organization_id: UUID,
     target: models.Model,
     content_type: ContentType,
-    image_ids: list[int],
+    image_ids: list[UUID],
 ) -> AttachImagesResult:
     _lock_target(target)
     existing_relations = _locked_relations(
@@ -85,7 +86,7 @@ def attach_images_to_object(
         relation.order for relation in existing_relations if relation.order is not None
     ]
     next_order = max(existing_orders, default=-1) + 1
-    attached_image_ids: list[int] = []
+    attached_image_ids: list[UUID] = []
     result_relations: list[PolymorphicImageRelation] = []
 
     for image in images:
@@ -115,8 +116,8 @@ def detach_images_from_object(
     *,
     target: models.Model,
     content_type: ContentType,
-    image_ids: list[int],
-) -> list[int]:
+    image_ids: list[UUID],
+) -> list[UUID]:
     _lock_target(target)
     relations = _locked_relations(
         content_type=content_type,
@@ -140,10 +141,10 @@ def detach_images_from_object(
 @transaction.atomic
 def reorder_object_images(
     *,
-    organization_id: int,
+    organization_id: UUID,
     target: models.Model,
     content_type: ContentType,
-    image_ids: list[int],
+    image_ids: list[UUID],
 ) -> None:
     _lock_target(target)
     relations = _locked_relations(
@@ -197,10 +198,10 @@ def reorder_object_images(
 @transaction.atomic
 def set_object_cover_image(
     *,
-    organization_id: int,
+    organization_id: UUID,
     target: models.Model,
     content_type: ContentType,
-    image_id: int,
+    image_id: UUID,
 ) -> None:
     _lock_target(target)
     relations = _locked_relations(

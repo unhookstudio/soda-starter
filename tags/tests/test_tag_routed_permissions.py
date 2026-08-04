@@ -17,7 +17,7 @@ def test_outsider_cannot_use_any_tag_read_or_mutation_route(api_client):
     owner = User.objects.create_user(email="tag-owner@example.com", password="pw")
     outsider = User.objects.create_user(email="tag-outsider@example.com", password="pw")
     organization = Organization.objects.create(
-        name="Tag Permissions", slug="tag-permissions", type="group"
+        name="Tag Permissions", slug="tag-permissions", kind="shared"
     )
     Membership.objects.create(user=owner, organization=organization, role="owner")
     contact = Contact.objects.create(

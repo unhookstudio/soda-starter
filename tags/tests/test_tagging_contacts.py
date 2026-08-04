@@ -34,7 +34,7 @@ def test_assign_tag_to_contact(api_client):
     assert response.status_code == 200
     data = response.json()
     assert set([tag["name"] for tag in data]) == {"vip", "newsletter"}
-    assert all(tag["organization"] == org.id for tag in data)
+    assert all(tag["organization"] == str(org.id) for tag in data)
     assert TaggedItem.objects.filter(object_id=contact.id, tag__name="vip").exists()
     assert TaggedItem.objects.filter(
         object_id=contact.id, tag__name="newsletter"
@@ -123,7 +123,7 @@ def test_edit_tag_name(api_client):
     data = response.json()
     assert data["name"] == "newname"
     assert data["slug"] == "newname"
-    assert data["organization"] == org.id
+    assert data["organization"] == str(org.id)
     tag.refresh_from_db()
     assert tag.name == "newname"
     assert tag.slug == "newname"

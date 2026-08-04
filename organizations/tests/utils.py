@@ -16,7 +16,7 @@ def create_test_group(*, name: str, slug: str, owner=None, **kwargs) -> Organiza
     organization = Organization.objects.create(
         name=name,
         slug=slug,
-        type="group",
+        kind="shared",
         **kwargs,
     )
     Membership.objects.create(

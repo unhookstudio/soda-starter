@@ -169,9 +169,9 @@ def delete_user_account(user) -> None:
         with transaction.atomic():
             organization_ids = list(
                 Organization.objects.filter(
-                    Q(type="personal", creator_id=user.pk)
+                    Q(kind="personal", creator_id=user.pk)
                     | Q(
-                        type="group",
+                        kind="shared",
                         memberships__user_id=user.pk,
                         memberships__role="owner",
                     )
@@ -187,7 +187,7 @@ def delete_user_account(user) -> None:
             locked_user = User.objects.select_for_update().get(pk=user.pk)
 
             for organization in organizations:
-                if organization.type != "group":
+                if organization.kind != "shared":
                     continue
                 still_owner = organization.memberships.filter(
                     user_id=locked_user.pk,
@@ -211,7 +211,7 @@ def delete_user_account(user) -> None:
             personal_ids = [
                 organization.pk
                 for organization in organizations
-                if organization.type == "personal"
+                if organization.kind == "personal"
                 and organization.creator_id == locked_user.pk
             ]
             Organization.objects.filter(pk__in=personal_ids).delete()

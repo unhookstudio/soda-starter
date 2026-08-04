@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.shortcuts import get_object_or_404
 
 from core.authentication import JWTAuth
@@ -13,7 +15,7 @@ from organizations.scope import resolve_org_scope
     response={200: ImageOut, 400: dict},
     auth=JWTAuth(),
 )
-def edit_image_metadata(request, org_slug: str, image_id: int, data: ImagePatchIn):
+def edit_image_metadata(request, org_slug: str, image_id: UUID, data: ImagePatchIn):
     scope = resolve_org_scope(request, org_slug).require_write()
     image = get_object_or_404(Image, id=image_id, organization=scope.org)
     payload = data.model_dump(exclude_unset=True)

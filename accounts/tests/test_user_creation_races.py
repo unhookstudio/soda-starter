@@ -25,4 +25,4 @@ def test_generated_identity_retries_after_unique_collision(monkeypatch):
 
     assert attempts == 2
     assert user.username.startswith("collision_")
-    assert Organization.objects.filter(type="personal", creator=user).exists()
+    assert Organization.objects.filter(kind="personal", creator=user).exists()

@@ -7,14 +7,23 @@ from organizations.models import Membership, Organization
 
 
 class ActiveOwnerRequiredError(ValueError):
-    """Raised when a membership change would leave a group without an active owner."""
+    """Raised when a membership change would leave a shared org without an owner."""
 
 
 def _is_personal_creator_membership(organization, membership) -> bool:
     return (
-        organization.type == "personal"
+        organization.kind == "personal"
         and organization.creator_id == membership.user_id
     )
+
+
+def _set_initial_current_organization(user, organization) -> None:
+    updated = user.__class__.objects.filter(
+        pk=user.pk,
+        current_organization__isnull=True,
+    ).update(current_organization=organization)
+    if updated:
+        user.current_organization = organization
 
 
 def _has_other_active_owner(*, organization, membership) -> bool:
@@ -31,7 +40,7 @@ def _has_other_active_owner(*, organization, membership) -> bool:
 
 @transaction.atomic
 def change_membership_role(membership: Membership, *, role: str) -> Membership:
-    """Change a role while preserving at least one active owner per group."""
+    """Change a role while preserving an active owner for a shared organization."""
     valid_roles = {value for value, _label in Membership.ROLE_CHOICES}
     if role not in valid_roles:
         raise ValueError(f"Unsupported membership role: {role}")
@@ -45,7 +54,7 @@ def change_membership_role(membership: Membership, *, role: str) -> Membership:
             "A personal organization's creator must remain its owner."
         )
     if (
-        organization.type == "group"
+        organization.kind == "shared"
         and locked.role == "owner"
         and role != "owner"
         and not _has_other_active_owner(
@@ -64,7 +73,7 @@ def change_membership_role(membership: Membership, *, role: str) -> Membership:
 
 @transaction.atomic
 def remove_membership(membership: Membership) -> None:
-    """Remove a membership without orphaning a group organization."""
+    """Remove a membership without orphaning a shared organization."""
     organization = Organization.objects.select_for_update().get(
         pk=membership.organization_id
     )
@@ -74,7 +83,7 @@ def remove_membership(membership: Membership) -> None:
             "A personal organization's creator membership cannot be removed."
         )
     if (
-        organization.type == "group"
+        organization.kind == "shared"
         and locked.role == "owner"
         and not _has_other_active_owner(
             organization=organization,
@@ -88,13 +97,13 @@ def remove_membership(membership: Membership) -> None:
 
 
 def assert_user_can_be_deactivated(user) -> None:
-    """Reject deactivation/deletion when the user is a group's last active owner."""
-    owned_groups = (
+    """Reject deactivation/deletion for a shared organization's last active owner."""
+    owned_shared_organizations = (
         Organization.objects.select_for_update()
-        .filter(type="group", memberships__user=user, memberships__role="owner")
+        .filter(kind="shared", memberships__user=user, memberships__role="owner")
         .order_by("pk")
     )
-    for organization in owned_groups:
+    for organization in owned_shared_organizations:
         has_successor = (
             Membership.objects.filter(
                 organization=organization,
@@ -111,14 +120,14 @@ def assert_user_can_be_deactivated(user) -> None:
 
 
 @transaction.atomic
-def create_group_organization(*, name: str, slug: str, owner) -> Organization:
-    """Create a group and its first active owner in one transaction."""
+def create_shared_organization(*, name: str, slug: str, owner) -> Organization:
+    """Create a shared organization and its first active owner atomically."""
     if not owner.is_active:
-        raise ActiveOwnerRequiredError("The initial group owner must be active.")
+        raise ActiveOwnerRequiredError("The initial shared owner must be active.")
     organization = Organization.objects.create(
         name=name,
         slug=slug,
-        type="group",
+        kind="shared",
         creator=owner,
     )
     Membership.objects.create(
@@ -131,13 +140,14 @@ def create_group_organization(*, name: str, slug: str, owner) -> Organization:
 
 @transaction.atomic
 def create_personal_organization(user) -> Organization:
-    existing = Organization.objects.filter(type="personal", creator=user).first()
+    existing = Organization.objects.filter(kind="personal", creator=user).first()
     if existing is not None:
         Membership.objects.update_or_create(
             user=user,
             organization=existing,
             defaults={"role": "owner"},
         )
+        _set_initial_current_organization(user, existing)
         return existing
 
     base_slug = user.slug or f"user-{user.pk}"
@@ -152,16 +162,17 @@ def create_personal_organization(user) -> Organization:
                 organization = Organization.objects.create(
                     name=user.username or f"user-{user.pk}",
                     slug=slug,
-                    type="personal",
+                    kind="personal",
                     creator=user,
                 )
                 Membership.objects.create(
                     user=user, organization=organization, role="owner"
                 )
+                _set_initial_current_organization(user, organization)
                 return organization
         except IntegrityError:
             existing = Organization.objects.filter(
-                type="personal", creator=user
+                kind="personal", creator=user
             ).first()
             if existing is not None:
                 Membership.objects.update_or_create(
@@ -169,6 +180,7 @@ def create_personal_organization(user) -> Organization:
                     organization=existing,
                     defaults={"role": "owner"},
                 )
+                _set_initial_current_organization(user, existing)
                 return existing
             if attempt == 4:
                 raise

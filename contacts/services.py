@@ -1,4 +1,5 @@
 import uuid
+from uuid import UUID
 
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
@@ -16,7 +17,7 @@ def contact_response_queryset():
 
 
 def unique_contact_slug(
-    organization, display_name: str, exclude_pk: int | None = None
+    organization, display_name: str, exclude_pk: UUID | None = None
 ) -> str:
     base = slugify(display_name) or "contact"
     candidate = base

@@ -224,7 +224,7 @@ def test_ready_export_url_is_generated_on_authenticated_read(
     User = get_user_model()
     admin = User.objects.create_user(email="export-read@example.com", password="pw")
     org = Organization.objects.create(
-        name="Export Read", slug="export-read", type="group"
+        name="Export Read", slug="export-read", kind="shared"
     )
     Membership.objects.create(user=admin, organization=org, role="owner")
     job = ExportJob.objects.create(
@@ -254,7 +254,7 @@ def test_export_list_does_not_generate_download_credentials(
     User = get_user_model()
     admin = User.objects.create_user(email="export-list@example.com", password="pw")
     org = Organization.objects.create(
-        name="Export List", slug="export-list", type="group"
+        name="Export List", slug="export-list", kind="shared"
     )
     Membership.objects.create(user=admin, organization=org, role="owner")
     for index in range(3):

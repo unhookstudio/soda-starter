@@ -9,7 +9,7 @@ User = get_user_model()
 @pytest.mark.django_db
 def test_personal_org_created_on_user_creation():
     user = User.objects.create_user(email="test1@example.com", password="pw")
-    orgs = Organization.objects.filter(type="personal", memberships__user=user)
+    orgs = Organization.objects.filter(kind="personal", memberships__user=user)
     assert orgs.count() == 1
     org = orgs.first()
     assert org.name == user.username or org.name == f"user-{user.pk}"
@@ -20,12 +20,13 @@ def test_personal_org_created_on_user_creation():
         or org.slug.startswith(f"user-{user.pk}")
     )
     assert org.creator == user
+    assert user.current_organization == org
 
 
 @pytest.mark.django_db
 def test_membership_created_for_personal_org():
     user = User.objects.create_user(email="test2@example.com", password="pw")
-    org = Organization.objects.get(type="personal", memberships__user=user)
+    org = Organization.objects.get(kind="personal", memberships__user=user)
     membership = Membership.objects.get(user=user, organization=org)
     assert membership.role == "owner"
 
@@ -33,7 +34,7 @@ def test_membership_created_for_personal_org():
 @pytest.mark.django_db
 def test_personal_org_deleted_on_user_deletion():
     user = User.objects.create_user(email="test3@example.com", password="pw")
-    org_id = Organization.objects.get(type="personal", memberships__user=user).id
+    org_id = Organization.objects.get(kind="personal", memberships__user=user).id
     user.delete()
     assert not Organization.objects.filter(id=org_id).exists()
 
@@ -43,7 +44,7 @@ def test_no_duplicate_personal_orgs():
     user = User.objects.create_user(email="test4@example.com", password="pw")
     # Simulate a second save (should not create a new org)
     user.save()
-    orgs = Organization.objects.filter(type="personal", memberships__user=user)
+    orgs = Organization.objects.filter(kind="personal", memberships__user=user)
     assert orgs.count() == 1
 
 
@@ -53,7 +54,7 @@ def test_deleting_member_does_not_delete_another_users_personal_org():
     member = User.objects.create_user(
         email="personal-member@example.com", password="pw"
     )
-    organization = Organization.objects.get(type="personal", creator=owner)
+    organization = Organization.objects.get(kind="personal", creator=owner)
     Membership.objects.create(user=member, organization=organization, role="member")
 
     member.delete()

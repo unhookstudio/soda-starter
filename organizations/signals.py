@@ -12,7 +12,7 @@ def delete_personal_org_on_user_delete(sender, instance, **kwargs):
     # Only delete the account's own personal organization. Membership in another
     # user's personal organization must never make that organization a cascade target.
     personal_orgs = Organization.objects.filter(
-        type="personal", creator=instance, memberships__user=instance
+        kind="personal", creator=instance, memberships__user=instance
     ).distinct()
     for org in personal_orgs:
         org.delete()

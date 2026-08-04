@@ -1,4 +1,5 @@
 from typing import List
+from uuid import UUID
 
 from ninja.errors import HttpError
 from ninja.pagination import LimitOffsetPagination, paginate
@@ -46,7 +47,7 @@ def list_images_for_object(
     org_slug: str,
     app_label: str,
     model: str,
-    obj_id: int,
+    obj_id: UUID,
     ordering: str | None = None,
 ):
     resolved = resolve_org_scoped_content_object(

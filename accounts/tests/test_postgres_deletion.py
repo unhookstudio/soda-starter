@@ -3,7 +3,7 @@ from django.db import IntegrityError, connection, transaction
 
 from accounts.models import User
 from organizations.models import Membership, Organization
-from organizations.services import create_group_organization
+from organizations.services import create_shared_organization
 
 pytestmark = [
     pytest.mark.django_db(transaction=True),
@@ -20,7 +20,7 @@ def test_raw_user_deletion_removes_personal_organization(use_queryset):
         email=f"raw-delete-{use_queryset}@example.com", password="pw"
     )
     user_id = user.pk
-    personal_id = Organization.objects.get(type="personal", creator=user).pk
+    personal_id = Organization.objects.get(kind="personal", creator=user).pk
 
     if use_queryset:
         User.objects.filter(pk=user_id).delete()
@@ -33,7 +33,7 @@ def test_raw_user_deletion_removes_personal_organization(use_queryset):
 
 def test_database_trigger_rejects_raw_last_group_owner_deletion():
     user = User.objects.create_user(email="raw-last-owner@example.com", password="pw")
-    organization = create_group_organization(
+    organization = create_shared_organization(
         name="Raw guarded",
         slug="raw-guarded",
         owner=user,

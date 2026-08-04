@@ -18,21 +18,13 @@ from contacts.throttles import contact_search_throttle
 from core.authentication import JWTAuth
 from core.schemas import AvatarUrlsOut, DetailResponse
 from core.utils.avatar import schedule_avatar_file_deletion, sign_avatar_urls
-from core.utils.image import (
-    InvalidImageContent,
-    resize_avatar_images,
-)
+from core.utils.image import InvalidImageContent, resize_avatar_images
 from core.utils.storage import delete_storage_keys, upload_to_storage
 from core.utils.uploads import UploadTooLarge, read_uploaded_file_bounded
 from organizations.scope import resolve_org_scope, resolve_write_org_scope
 
 from .models import Contact
-from .schemas import (
-    ContactIn,
-    ContactOut,
-    ContactReplace,
-    ContactUpdate,
-)
+from .schemas import ContactIn, ContactOut, ContactReplace, ContactUpdate
 from .validation import MAX_CONTACT_SEARCH_LENGTH, MAX_CONTACT_SEARCH_TERMS
 
 contacts_router = Router()
@@ -51,7 +43,7 @@ ALLOWED_SORT_FIELDS = {
 @contacts_router.get(
     "/contacts/{contact_id}/avatar", response=AvatarUrlsOut, auth=JWTAuth()
 )
-def get_contact_avatar(request, contact_id: int):
+def get_contact_avatar(request, contact_id: uuid.UUID):
     contact = get_object_or_404(Contact, id=contact_id)
     if not contact.avatar_path:
         raise HttpError(404, "Avatar not found.")

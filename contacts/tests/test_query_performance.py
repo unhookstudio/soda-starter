@@ -20,7 +20,7 @@ User = get_user_model()
 def test_new_contact_response_serialization_issues_no_queries():
     user = User.objects.create_user(email="create-query@example.com", password="pw")
     organization = Organization.objects.create(
-        name="Create query", slug="create-query", type="group"
+        name="Create query", slug="create-query", kind="shared"
     )
     Membership.objects.create(user=user, organization=organization, role="owner")
     contact = create_contact_record(
@@ -40,7 +40,7 @@ def test_new_contact_response_serialization_issues_no_queries():
 def test_updated_contact_response_serialization_uses_prefetched_relations():
     user = User.objects.create_user(email="update-query@example.com", password="pw")
     organization = Organization.objects.create(
-        name="Update query", slug="update-query", type="group"
+        name="Update query", slug="update-query", kind="shared"
     )
     Membership.objects.create(user=user, organization=organization, role="owner")
     contact = Contact.objects.create(

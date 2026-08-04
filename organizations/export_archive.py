@@ -7,6 +7,7 @@ import zipfile
 from collections.abc import Callable
 from typing import IO, Any
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
 
 from contacts.models import Contact
@@ -39,7 +40,7 @@ def serialize_org_data(job: ExportJob) -> dict[str, Any]:
             "id": org.id,
             "name": org.name,
             "slug": org.slug,
-            "type": org.type,
+            "kind": org.kind,
             "created_at": org.created_at.isoformat(),
             "updated_at": org.updated_at.isoformat(),
         },
@@ -115,7 +116,12 @@ def build_export_archive(
     with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
             "data.json",
-            json.dumps(serialize_org_data(job), ensure_ascii=False, indent=2),
+            json.dumps(
+                serialize_org_data(job),
+                ensure_ascii=False,
+                indent=2,
+                cls=DjangoJSONEncoder,
+            ),
         )
         if heartbeat:
             heartbeat()

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, transaction
@@ -13,13 +14,13 @@ from tags.validation import MAX_TAGS_PER_ASSIGNMENT, normalize_tag_name
 @dataclass(frozen=True)
 class TagAssignmentResult:
     tags: list[Tag]
-    newly_assigned_tag_ids: list[int]
+    newly_assigned_tag_ids: list[UUID]
 
 
 @dataclass(frozen=True)
 class TagUnassignmentResult:
     removed_count: int
-    tag_id: int | None = None
+    tag_id: UUID | None = None
 
 
 def _canonical_name(name: str) -> tuple[str, str]:
@@ -67,7 +68,7 @@ def rename_tag(tag: Tag, name: str) -> Tag:
 
 
 @transaction.atomic
-def delete_tag(tag: Tag) -> int:
+def delete_tag(tag: Tag) -> UUID:
     tag_id = tag.pk
     tag.delete()
     return tag_id
@@ -78,8 +79,8 @@ def unassign_tags_from_object(
     *,
     organization: Organization,
     content_type: ContentType,
-    object_id: int,
-    tag_ids: list[int],
+    object_id: UUID,
+    tag_ids: list[UUID],
 ) -> TagUnassignmentResult:
     deleted, _ = TaggedItem.objects.filter(
         tag_id__in=tag_ids,
@@ -95,7 +96,7 @@ def unassign_tag_from_object_by_slug(
     *,
     organization: Organization,
     content_type: ContentType,
-    object_id: int,
+    object_id: UUID,
     slug: str,
 ) -> TagUnassignmentResult:
     tag = Tag.objects.filter(organization=organization, slug=slug).first()
@@ -113,7 +114,7 @@ def unassign_tag_from_object_by_slug(
 def assign_tags_to_object(
     organization: Organization,
     content_type: ContentType,
-    object_id: int,
+    object_id: UUID,
     names: list[str],
 ) -> TagAssignmentResult:
     if not 1 <= len(names) <= MAX_TAGS_PER_ASSIGNMENT:

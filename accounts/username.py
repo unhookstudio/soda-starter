@@ -42,9 +42,9 @@ def update_username(request, data: UsernameUpdateSchema):
             user.save(update_fields=["username", "updated_at"])
     except IntegrityError as exc:
         raise HttpError(409, "Username already taken") from exc
-    # Update user's personal organization (via Membership with role='owner', type='personal')
+    # Update the user's personal organization owned through its membership.
     org = (
-        Organization.objects.filter(creator=user, type="personal")
+        Organization.objects.filter(creator=user, kind="personal")
         .order_by("id")
         .first()
     )

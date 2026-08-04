@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
+from uuid import UUID
 
 from django.db import connection, transaction
 from django.http import HttpRequest
@@ -43,7 +44,7 @@ def _client_key(request: HttpRequest) -> str | None:
     return value
 
 
-def _identity_hash(user_id: int, method: str, path: str, client_key: str) -> str:
+def _identity_hash(user_id: UUID, method: str, path: str, client_key: str) -> str:
     identity = f"{user_id}:{method.upper()}:{path}:{client_key}"
     return hashlib.sha256(identity.encode()).hexdigest()
 

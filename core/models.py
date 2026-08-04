@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 
 
@@ -9,7 +10,7 @@ class IdempotencyRecord(models.Model):
     method = models.CharField(max_length=10)
     path = models.TextField()
     status_code = models.PositiveSmallIntegerField()
-    response_data = models.JSONField(null=True)
+    response_data = models.JSONField(null=True, encoder=DjangoJSONEncoder)
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField()
     expires_at = models.DateTimeField(db_index=True)

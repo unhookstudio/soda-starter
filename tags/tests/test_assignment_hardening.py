@@ -17,7 +17,7 @@ def tag_context(api_client, make_auth_headers):
     organization = Organization.objects.create(
         name="Tag hardening",
         slug="tag-hardening",
-        type="group",
+        kind="shared",
         creator=user,
     )
     Membership.objects.create(user=user, organization=organization, role="owner")

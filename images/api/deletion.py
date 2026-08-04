@@ -1,4 +1,5 @@
 import json
+from uuid import UUID
 
 from django.shortcuts import get_object_or_404
 from ninja import Status
@@ -16,7 +17,7 @@ from organizations.scope import resolve_org_scope
 @router.delete(
     "/orgs/{org_slug}/images/{image_id}/", auth=JWTAuth(), response={204: None}
 )
-def delete_image(request, org_slug: str, image_id: int):
+def delete_image(request, org_slug: str, image_id: UUID):
     scope = resolve_org_scope(request, org_slug).require_write()
     org = scope.org
     user = scope.user

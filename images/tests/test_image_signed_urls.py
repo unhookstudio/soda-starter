@@ -49,7 +49,7 @@ def test_org_member_can_get_signed_image_urls(monkeypatch):
 
     assert response.status_code == 200, response.content
     data = response.json()
-    assert data["image_id"] == image.id
+    assert data["image_id"] == str(image.id)
     assert set(data["urls"]) == {"original", "thumb", "sm", "md", "lg"}
     assert data["urls"]["original"] == "https://r2.example/images/example.jpg?signed=1"
     assert (
@@ -118,7 +118,7 @@ def test_org_member_can_create_and_revoke_share_link(monkeypatch):
     )
     assert create_response.status_code == 200, create_response.content
     share_data = create_response.json()
-    assert share_data["image_id"] == image.id
+    assert share_data["image_id"] == str(image.id)
     assert share_data["token"]
     stored_link = ImageShareLink.objects.get(pk=share_data["id"])
     assert stored_link.token_hash == hash_share_token(share_data["token"])

@@ -7,7 +7,7 @@ def make_it_unique(
     base_value: object,
     model: type[models.Model],
     field_name: str,
-    exclude_pk: int | None = None,
+    exclude_pk: object | None = None,
 ) -> str:
     """Return an available field value derived from ``base_value``."""
     field = model._meta.get_field(field_name)

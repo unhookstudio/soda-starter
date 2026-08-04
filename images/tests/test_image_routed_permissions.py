@@ -30,7 +30,7 @@ def test_outsider_cannot_use_any_image_read_or_mutation_route(api_client):
         email="image-outsider@example.com", password="pw"
     )
     organization = Organization.objects.create(
-        name="Image Permissions", slug="image-permissions", type="group"
+        name="Image Permissions", slug="image-permissions", kind="shared"
     )
     Membership.objects.create(user=owner, organization=organization, role="owner")
     contact = Contact.objects.create(
@@ -97,7 +97,7 @@ def test_outsider_cannot_use_any_image_read_or_mutation_route(api_client):
 def test_object_routes_hide_targets_from_another_organization(api_client):
     user = User.objects.create_user(email="image-scope@example.com", password="pw")
     visible_org = Organization.objects.create(
-        name="Visible Images", slug="visible-images", type="group"
+        name="Visible Images", slug="visible-images", kind="shared"
     )
     hidden_org = create_test_group(name="Hidden Images", slug="hidden-images")
     Membership.objects.create(user=user, organization=visible_org, role="owner")

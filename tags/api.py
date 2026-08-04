@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 from django.shortcuts import get_object_or_404
 from ninja import Router
@@ -129,7 +130,7 @@ def list_tags_for_object(
     org_slug: str,
     app_label: str,
     model: str,
-    obj_id: int,
+    obj_id: UUID,
     ordering: str | None = None,
 ):
     """List tags for a specific object (paginated)."""
@@ -172,7 +173,7 @@ def assign_tags(
     org_slug: str,
     app_label: str,
     model: str,
-    obj_id: int,
+    obj_id: UUID,
     data: TagAssignment,
 ):
     """Assign tags by name to an object. Creates tags if missing within the organization.
@@ -210,7 +211,7 @@ def assign_tags(
     summary="Update tag",
     description="Rename an organization tag and regenerate its slug.",
 )
-def update_tag(request, org_slug: str, tag_id: int, data: TagUpdate):
+def update_tag(request, org_slug: str, tag_id: UUID, data: TagUpdate):
     scope = resolve_org_scope(request, org_slug).require_write()
     org = scope.org
     tag = get_object_or_404(Tag, id=tag_id, organization=org)
@@ -233,7 +234,7 @@ def update_tag(request, org_slug: str, tag_id: int, data: TagUpdate):
     summary="Delete tag",
     description="Delete one organization tag by id.",
 )
-def delete_tag(request, org_slug: str, tag_id: int):
+def delete_tag(request, org_slug: str, tag_id: UUID):
     scope = resolve_org_scope(request, org_slug).require_write()
     org = scope.org
     user = scope.user
@@ -256,7 +257,12 @@ def delete_tag(request, org_slug: str, tag_id: int):
     description="Remove multiple tag ids from an organization-scoped object.",
 )
 def unassign_tags(
-    request, org_slug: str, app_label: str, model: str, obj_id: int, tag_ids: list[int]
+    request,
+    org_slug: str,
+    app_label: str,
+    model: str,
+    obj_id: UUID,
+    tag_ids: list[UUID],
 ):
     """Bulk unassign tags from an object.
 
@@ -298,7 +304,7 @@ def unassign_tags(
     description="Remove one tag from an object by tag slug. Missing tags are treated as already removed.",
 )
 def unassign_tag_by_slug(
-    request, org_slug: str, app_label: str, model: str, obj_id: int, slug: str
+    request, org_slug: str, app_label: str, model: str, obj_id: UUID, slug: str
 ):
     """Unassign a single tag from an object by tag slug."""
     resolved = resolve_org_scoped_content_object(

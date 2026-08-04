@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -47,20 +48,20 @@ class ImageSignedUrls(BaseModel):
 
 
 class ImageSignedUrlsOut(BaseModel):
-    image_id: int
+    image_id: UUID
     expires_at: str
     urls: ImageSignedUrls
 
 
 class ImageOut(BaseModel):
-    id: int
+    id: UUID
     file: str
     variant_keys: Optional[ImageVariants] = None
     description: Optional[str] = None
     alt_text: Optional[str] = None
     title: Optional[str] = None
-    organization: int = Field(..., alias="organization_id")
-    creator: Optional[int] = Field(None, alias="creator_id")
+    organization: UUID = Field(..., alias="organization_id")
+    creator: Optional[UUID] = Field(None, alias="creator_id")
     created_at: str
     updated_at: str
 
@@ -80,28 +81,28 @@ class ImageOut(BaseModel):
 
 
 class PolymorphicImageRelationOut(BaseModel):
-    id: int
+    id: UUID
     image: ImageOut
     is_cover: bool
     order: Optional[int] = None
     custom_description: Optional[str] = None
     custom_alt_text: Optional[str] = None
     custom_title: Optional[str] = None
-    object_id: int
+    object_id: UUID
     content_type: str  # e.g. "contacts.contact"
     model_config = ConfigDict(from_attributes=True)
 
 
 class BulkAttachOut(BaseModel):
-    attached: List[int]
+    attached: List[UUID]
 
 
 class BulkDetachOut(BaseModel):
-    detached: List[int]
+    detached: List[UUID]
 
 
 class SetCoverIn(BaseModel):
-    image_id: int
+    image_id: UUID
     model_config = ConfigDict(extra="forbid")
 
 
@@ -116,9 +117,9 @@ class ResolveImageShareIn(BaseModel):
 
 
 class ImageShareOut(BaseModel):
-    id: int
+    id: UUID
     token: str
-    image_id: int
+    image_id: UUID
     created_at: str
     expires_at: Optional[str] = None
     revoked_at: Optional[str] = None

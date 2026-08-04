@@ -1,5 +1,6 @@
 import secrets
 from datetime import timedelta
+from uuid import UUID
 
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -37,7 +38,7 @@ def serialize_share_link(share_link: ImageShareLink, raw_token: str) -> ImageSha
     response=ImageSignedUrlsOut,
     auth=JWTAuth(),
 )
-def get_image_signed_urls(request, org_slug: str, image_id: int):
+def get_image_signed_urls(request, org_slug: str, image_id: UUID):
     scope = resolve_org_scope(request, org_slug)
     image = get_object_or_404(Image, id=image_id, organization=scope.org)
     return sign_image_variant_urls(image)
@@ -46,7 +47,9 @@ def get_image_signed_urls(request, org_slug: str, image_id: int):
 @router.post(
     "/orgs/{org_slug}/images/{image_id}/shares", response=ImageShareOut, auth=JWTAuth()
 )
-def create_image_share(request, org_slug: str, image_id: int, data: CreateImageShareIn):
+def create_image_share(
+    request, org_slug: str, image_id: UUID, data: CreateImageShareIn
+):
     scope = resolve_org_scope(request, org_slug).require_write()
     org = scope.org
     user = scope.user
@@ -72,7 +75,7 @@ def create_image_share(request, org_slug: str, image_id: int, data: CreateImageS
     response={200: DetailResponse},
     auth=JWTAuth(),
 )
-def revoke_image_share(request, org_slug: str, image_id: int, share_id: int):
+def revoke_image_share(request, org_slug: str, image_id: UUID, share_id: UUID):
     scope = resolve_org_scope(request, org_slug).require_write()
     image = get_object_or_404(Image, id=image_id, organization=scope.org)
     share_link = get_object_or_404(ImageShareLink, id=share_id, image=image)

@@ -36,7 +36,7 @@ class Command(BaseCommand):
 
         organization, _ = Organization.objects.get_or_create(
             slug="demo-team",
-            defaults={"name": "Demo Team", "type": "group", "creator": user},
+            defaults={"name": "Demo Team", "kind": "shared", "creator": user},
         )
         Membership.objects.get_or_create(
             user=user,

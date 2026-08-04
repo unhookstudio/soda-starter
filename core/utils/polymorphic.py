@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import cast
+from uuid import UUID
 
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
@@ -50,7 +51,7 @@ def resolve_org_scoped_content_object(
     org_slug: str,
     app_label: str,
     model: str,
-    obj_id: int,
+    obj_id: UUID,
 ) -> OrgScopedContentObject:
     scope = resolve_org_scope(request, org_slug)
     org = scope.org

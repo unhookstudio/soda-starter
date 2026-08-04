@@ -79,7 +79,7 @@ def test_bulk_attach_and_detach_images_to_object():
     assert resp.status_code == 200, resp.content
     data = resp.json()
     # Expect BulkAttachOut { attached: number[] }
-    assert "attached" in data and set(data["attached"]) == {img1.id, img2.id}
+    assert "attached" in data and set(data["attached"]) == {str(img1.id), str(img2.id)}
 
     # Bulk detach
     detach_url = (
@@ -94,7 +94,7 @@ def test_bulk_attach_and_detach_images_to_object():
     assert resp.status_code == 200, resp.content
     data = resp.json()
     # Expect BulkDetachOut { detached: number[] }
-    assert "detached" in data and set(data["detached"]) == {img1.id, img2.id}
+    assert "detached" in data and set(data["detached"]) == {str(img1.id), str(img2.id)}
 
 
 @pytest.mark.django_db

@@ -22,7 +22,7 @@ from accounts.services import (
 )
 from accounts.tokens import hash_token
 from organizations.models import Membership
-from organizations.services import ActiveOwnerRequiredError, create_group_organization
+from organizations.services import ActiveOwnerRequiredError, create_shared_organization
 
 pytestmark = [
     pytest.mark.django_db(transaction=True),
@@ -136,7 +136,7 @@ def test_refresh_rotation_and_password_change_do_not_deadlock():
 def test_shared_organization_serializes_concurrent_deactivation():
     first = User.objects.create_user(email="owner-one@example.com", password="pw")
     second = User.objects.create_user(email="owner-two@example.com", password="pw")
-    organization = create_group_organization(
+    organization = create_shared_organization(
         name="Shared owners",
         slug="shared-owners",
         owner=first,

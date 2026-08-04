@@ -12,7 +12,7 @@ from organizations.models import Membership, Organization
 def upload_route_context():
     user = User.objects.create_user(email="upload-limits@example.com", password="pw")
     organization = Organization.objects.create(
-        name="Upload Limits", slug="upload-limits", type="group"
+        name="Upload Limits", slug="upload-limits", kind="shared"
     )
     Membership.objects.create(user=user, organization=organization, role="owner")
     access, _refresh = issue_token_pair(user)

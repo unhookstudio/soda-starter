@@ -16,7 +16,7 @@ def headers_for(user: User) -> dict[str, str]:
 def image_context():
     user = User.objects.create_user(email="metadata-owner@example.com", password="pw")
     organization = Organization.objects.create(
-        name="Image Metadata", slug="image-metadata", type="group"
+        name="Image Metadata", slug="image-metadata", kind="shared"
     )
     Membership.objects.create(user=user, organization=organization, role="owner")
     image = Image.objects.create(

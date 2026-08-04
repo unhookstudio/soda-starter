@@ -1,4 +1,5 @@
 import io
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -45,7 +46,7 @@ def routed_tenant():
         email="route-outsider@example.com", password="pw"
     )
     organization = Organization.objects.create(
-        name="Routed", slug="routed", type="group"
+        name="Routed", slug="routed", kind="shared"
     )
     Membership.objects.create(user=owner, organization=organization, role="owner")
     Membership.objects.create(user=admin, organization=organization, role="admin")
@@ -300,7 +301,7 @@ def test_bulk_detach_replay_runs_through_router(api_client, routed_tenant):
 
     assert attached.status_code == 200
     assert initial.status_code == replay.status_code == 200
-    assert initial.json() == replay.json() == {"detached": [image.pk]}
+    assert initial.json() == replay.json() == {"detached": [str(image.pk)]}
 
 
 @pytest.mark.django_db
@@ -334,7 +335,7 @@ def test_bulk_delete_success_and_partial_failure_replay_through_router(
     assert initial_success.status_code == replayed_success.status_code == 204
     assert not Image.objects.filter(pk=success.pk).exists()
 
-    missing_id = partial.pk + 100_000
+    missing_id = uuid.uuid4()
     partial_headers = {
         **auth_headers,
         "Idempotency-Key": "routed-delete-partial",
@@ -352,8 +353,8 @@ def test_bulk_delete_success_and_partial_failure_replay_through_router(
 
     assert initial_partial.status_code == replayed_partial.status_code == 400
     assert initial_partial.json() == replayed_partial.json()
-    assert initial_partial.json()["deleted"] == [partial.pk]
+    assert initial_partial.json()["deleted"] == [str(partial.pk)]
     assert initial_partial.json()["failed"] == [
-        {"id": missing_id, "reason": "not found"}
+        {"id": str(missing_id), "reason": "not found"}
     ]
     assert not Image.objects.filter(pk=partial.pk).exists()

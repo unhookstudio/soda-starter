@@ -24,7 +24,7 @@ def test_create_contact(make_auth_headers, api_client):
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Test Org", slug="test-org", type="group", creator=user
+        name="Test Org", slug="test-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     headers = make_auth_headers(api_client, user, password="pw")
@@ -67,7 +67,7 @@ def test_contact_create_retries_slug_collision(
 ):
     user = create_test_user(email="contact-race@example.com", password="pw")
     organization = Organization.objects.create(
-        name="Contact race", slug="contact-race", type="group"
+        name="Contact race", slug="contact-race", kind="shared"
     )
     Membership.objects.create(user=user, organization=organization, role="owner")
     original_create = Contact.objects.create
@@ -139,7 +139,7 @@ def test_partial_update_contact_location_and_notes(make_auth_headers, api_client
     org = Organization.objects.create(
         name="Patch Contact Fields",
         slug="patch-contact-fields",
-        type="group",
+        kind="shared",
         creator=user,
     )
     Membership.objects.create(user=user, organization=org, role="owner")
@@ -173,7 +173,7 @@ def test_partial_update_contact_clears_location_and_notes(
     org = Organization.objects.create(
         name="Clear Contact Fields",
         slug="clear-contact-fields",
-        type="group",
+        kind="shared",
         creator=user,
     )
     Membership.objects.create(user=user, organization=org, role="owner")
@@ -207,7 +207,7 @@ def test_list_contacts(make_auth_headers, api_client):
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Test Org", slug="test-org", type="group", creator=user
+        name="Test Org", slug="test-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     Contact.objects.create(display_name="X", slug="x", organization=org, creator=user)
@@ -232,7 +232,7 @@ def test_delete_contact(
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Test Org", slug="test-org", type="group", creator=user
+        name="Test Org", slug="test-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     contact = Contact.objects.create(
@@ -314,7 +314,7 @@ def test_upload_contact_avatar(tmp_path, monkeypatch, make_auth_headers, api_cli
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Test Org", slug="test-org", type="group", creator=user
+        name="Test Org", slug="test-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     contact = Contact.objects.create(
@@ -357,7 +357,7 @@ def test_upload_contact_avatar_invalid_type(make_auth_headers, api_client):
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Test Org", slug="test-org", type="group", creator=user
+        name="Test Org", slug="test-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     contact = Contact.objects.create(
@@ -385,7 +385,7 @@ def test_delete_contact_avatar(monkeypatch, make_auth_headers, api_client):
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Test Org", slug="test-org", type="group", creator=user
+        name="Test Org", slug="test-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     contact = Contact.objects.create(
@@ -437,7 +437,7 @@ def test_delete_contact_avatar_no_avatar(make_auth_headers, api_client):
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Test Org", slug="test-org", type="group", creator=user
+        name="Test Org", slug="test-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     contact = Contact.objects.create(
@@ -521,7 +521,7 @@ def test_upload_contact_avatar_too_large(make_auth_headers, api_client):
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Test Org", slug="test-org", type="group", creator=user
+        name="Test Org", slug="test-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     contact = Contact.objects.create(
@@ -550,7 +550,7 @@ def test_create_contact_display_name_logic(make_auth_headers, api_client):
         email="logic@example.com", password="pw", username="logicuser", slug="logicuser"
     )
     org = Organization.objects.create(
-        name="Logic Org", slug="logic-org", type="group", creator=user
+        name="Logic Org", slug="logic-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     headers = make_auth_headers(api_client, user, password="pw")
@@ -585,10 +585,10 @@ def test_update_contact_fields_within_organization(make_auth_headers, api_client
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org1 = Organization.objects.create(
-        name="Org1", slug="org1", type="group", creator=user
+        name="Org1", slug="org1", kind="shared", creator=user
     )
     org2 = Organization.objects.create(
-        name="Org2", slug="org2", type="group", creator=user
+        name="Org2", slug="org2", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org1, role="owner")
     Membership.objects.create(user=user, organization=org2, role="owner")
@@ -631,7 +631,7 @@ def test_update_contact_rejects_organization_in_body(make_auth_headers, api_clie
         email="move@example.com", password="pw", username="moveuser", slug="moveuser"
     )
     org1 = Organization.objects.create(
-        name="Move Org1", slug="move-org1", type="group", creator=user
+        name="Move Org1", slug="move-org1", kind="shared", creator=user
     )
     org2 = create_test_group(name="Move Org2", slug="move-org2", creator=None)
     Membership.objects.create(user=user, organization=org1, role="owner")
@@ -657,7 +657,7 @@ def test_upload_contact_avatar_error(monkeypatch, make_auth_headers, api_client)
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org = Organization.objects.create(
-        name="Avatar Org", slug="avatar-org", type="group", creator=user
+        name="Avatar Org", slug="avatar-org", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org, role="owner")
     contact = Contact.objects.create(
@@ -696,10 +696,10 @@ def test_partial_update_rejects_organization_in_body(make_auth_headers, api_clie
         email="test@example.com", password="pw", username="testuser", slug="testuser"
     )
     org1 = Organization.objects.create(
-        name="Org1Patch", slug="org1patch", type="group", creator=user
+        name="Org1Patch", slug="org1patch", kind="shared", creator=user
     )
     org2 = Organization.objects.create(
-        name="Org2Patch", slug="org2patch", type="group", creator=user
+        name="Org2Patch", slug="org2patch", kind="shared", creator=user
     )
     Membership.objects.create(user=user, organization=org1, role="owner")
     Membership.objects.create(user=user, organization=org2, role="owner")
@@ -727,7 +727,7 @@ def test_partial_update_contact_rejects_move_to_inaccessible_organization(
         slug="patchmove",
     )
     org1 = Organization.objects.create(
-        name="Patch Move Org1", slug="patch-move-org1", type="group", creator=user
+        name="Patch Move Org1", slug="patch-move-org1", kind="shared", creator=user
     )
     org2 = create_test_group(
         name="Patch Move Org2", slug="patch-move-org2", creator=None
@@ -755,7 +755,7 @@ def validated_contact_context(make_auth_headers, api_client):
     organization = Organization.objects.create(
         name="Contact validation",
         slug="contact-validation",
-        type="group",
+        kind="shared",
         creator=user,
     )
     Membership.objects.create(user=user, organization=organization, role="owner")

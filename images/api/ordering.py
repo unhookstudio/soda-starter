@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from ninja.errors import HttpError
 
 from core.authentication import JWTAuth
@@ -21,7 +23,7 @@ from images.schemas import DetailResponse, SetCoverIn
     auth=JWTAuth(),
 )
 def reorder_images(
-    request, org_slug: str, app_label: str, model: str, obj_id: int, data: ReorderIn
+    request, org_slug: str, app_label: str, model: str, obj_id: UUID, data: ReorderIn
 ):
     resolved = resolve_org_scoped_content_object(
         request, org_slug, app_label, model, obj_id
@@ -62,7 +64,7 @@ def reorder_images(
     auth=JWTAuth(),
 )
 def set_cover_image(
-    request, org_slug: str, app_label: str, model: str, obj_id: int, data: SetCoverIn
+    request, org_slug: str, app_label: str, model: str, obj_id: UUID, data: SetCoverIn
 ):
     resolved = resolve_org_scoped_content_object(
         request, org_slug, app_label, model, obj_id
@@ -100,7 +102,7 @@ def set_cover_image(
     response=DetailResponse,
     auth=JWTAuth(),
 )
-def unset_cover_image(request, org_slug: str, app_label: str, model: str, obj_id: int):
+def unset_cover_image(request, org_slug: str, app_label: str, model: str, obj_id: UUID):
     resolved = resolve_org_scoped_content_object(
         request, org_slug, app_label, model, obj_id
     )

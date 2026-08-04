@@ -1,4 +1,5 @@
 from typing import List
+from uuid import UUID
 
 from ninja import Status
 from ninja.errors import HttpError
@@ -24,7 +25,7 @@ from images.throttles import bulk_attach_throttle, bulk_detach_throttle
     auth=JWTAuth(),
 )
 def attach_images(
-    request, org_slug: str, app_label: str, model: str, obj_id: int, data: ImageIdsIn
+    request, org_slug: str, app_label: str, model: str, obj_id: UUID, data: ImageIdsIn
 ):
     resolved = resolve_org_scoped_content_object(
         request, org_slug, app_label, model, obj_id
@@ -69,7 +70,7 @@ def bulk_attach_images(
     org_slug: str,
     app_label: str,
     model: str,
-    obj_id: int,
+    obj_id: UUID,
     data: BulkImageIdsIn,
 ):
     resolved = resolve_org_scoped_content_object(
@@ -122,7 +123,7 @@ def bulk_detach_images(
     org_slug: str,
     app_label: str,
     model: str,
-    obj_id: int,
+    obj_id: UUID,
     data: BulkImageIdsIn,
 ):
     resolved = resolve_org_scoped_content_object(
@@ -163,7 +164,12 @@ def bulk_detach_images(
     response={204: None},
 )
 def remove_image_from_object(
-    request, org_slug: str, app_label: str, model: str, obj_id: int, image_id: int
+    request,
+    org_slug: str,
+    app_label: str,
+    model: str,
+    obj_id: UUID,
+    image_id: UUID,
 ):
     resolved = resolve_org_scoped_content_object(
         request, org_slug, app_label, model, obj_id

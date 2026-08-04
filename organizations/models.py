@@ -1,21 +1,23 @@
 import uuid
 
-from django.conf import settings
+from django.conf import settings as django_settings
 from django.db import models
 
 # Create your models here.
 
 
 class Organization(models.Model):
-    ORG_TYPE_CHOICES = [
+    KIND_CHOICES = [
         ("personal", "Personal"),
-        ("group", "Group"),
+        ("shared", "Shared"),
     ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
-    type = models.CharField(max_length=20, choices=ORG_TYPE_CHOICES, default="group")
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, default="shared")
+    settings = models.JSONField(default=dict, blank=True)
     creator = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        django_settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -27,16 +29,16 @@ class Organization(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(type__in=("personal", "group")),
-                name="organizations_org_valid_type",
+                condition=models.Q(kind__in=("personal", "shared")),
+                name="organizations_org_valid_kind",
             ),
             models.CheckConstraint(
-                condition=models.Q(type="group") | models.Q(creator__isnull=False),
+                condition=models.Q(kind="shared") | models.Q(creator__isnull=False),
                 name="organizations_personal_org_has_creator",
             ),
             models.UniqueConstraint(
                 fields=("creator",),
-                condition=models.Q(type="personal"),
+                condition=models.Q(kind="personal"),
                 name="organizations_personal_creator_unique",
             ),
         ]
@@ -52,7 +54,9 @@ class Membership(models.Model):
         ("member", "Member"),
     ]
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="memberships"
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="memberships",
     )
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="memberships"
@@ -99,7 +103,7 @@ class ExportJob(models.Model):
         Organization, on_delete=models.CASCADE, related_name="export_jobs"
     )
     requested_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        django_settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         related_name="requested_export_jobs",
