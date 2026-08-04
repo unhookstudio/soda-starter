@@ -27,7 +27,6 @@ CORS_ALLOWED_ORIGINS = env.list(
     "CORS_ALLOWED_ORIGINS",
     default=[FRONTEND_URL],
 )
-CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS",
     default=[FRONTEND_URL],
@@ -259,16 +258,6 @@ NINJA_JWT = {
     "AUDIENCE": env.str("JWT_AUDIENCE", default="listening-journal-api"),
     "ISSUER": env.str("JWT_ISSUER", default="listening-journal-api"),
 }
-BROWSER_REFRESH_COOKIE_NAME = "browser_refresh"
-BROWSER_REFRESH_COOKIE_PATH = "/api/v1/auth/browser/"
-BROWSER_REFRESH_COOKIE_SECURE = env.bool(
-    "BROWSER_REFRESH_COOKIE_SECURE",
-    default=False,
-)
-BROWSER_REFRESH_COOKIE_MAX_AGE = int(
-    NINJA_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
-)
-
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True

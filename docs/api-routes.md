@@ -21,7 +21,6 @@ API operations are versioned below `/api/v1`.
 | Purpose | Routes |
 | --- | --- |
 | Sessions | `POST /token/pair`, `/token/refresh`, `/token/verify` |
-| Browser sessions | `GET /auth/browser/csrf`; `POST /auth/browser/login`, `/auth/browser/verify-registration`, `/auth/browser/refresh`, `/auth/browser/logout` |
 | Account lifecycle | `POST /auth/register/` (email only), `/auth/verify-registration` (token plus password), `/auth/logout/`, `/auth/password-reset/request`, `/auth/password-reset/confirm`; `PATCH /auth/email` requires the current password |
 | Current user | `GET/PATCH /users/me`, `PATCH /users/username`, `POST/DELETE /users/avatar`, authenticated `GET /users/{slug}/avatar` |
 | Contacts | `GET/POST /orgs/{org_slug}/contacts/`, CRUD below `/contacts/{slug}/`, scoped avatar upload/delete, authenticated `GET /contacts/{id}/avatar` |
@@ -33,9 +32,9 @@ API operations are versioned below `/api/v1`.
 All paths in the table are relative to `/api/v1`. Authenticated routes accept
 `Authorization: Bearer <access-token>`.
 
-Browser login and registration return an access token but keep the rotating
-refresh token in an HttpOnly cookie. Browser state-changing auth requests require
-the CSRF token returned by `/auth/browser/csrf`; see [security.md](security.md).
+Access and refresh tokens are returned in JSON. The SvelteKit server stores them
+in its own browser-facing HttpOnly cookies and sends bearer access tokens to this
+API; see [security.md](security.md).
 
 Export creation returns a job, not a URL. Poll the authenticated job route; a
 ready response contains a short-lived signed download URL. Export files expire

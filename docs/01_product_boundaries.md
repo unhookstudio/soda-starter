@@ -48,10 +48,10 @@ product work make them intentional.
 
 ### Removed or replaced foundations
 
-The rewrite will:
+The rewrite has:
 
-- remove the separate browser-authentication API unless the Svelte integration
-  proves that it is required;
+- removed the separate browser-authentication API because SvelteKit owns the
+  browser-facing HttpOnly cookies and uses Django's JSON token API;
 - replace `NinjaExtraAPI` with Django Ninja's `NinjaAPI` because no Ninja Extra
   controller or dependency-injection features are in use;
 - replace Celery, Beat, Redis broker state, and Redis caching with

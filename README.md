@@ -11,8 +11,8 @@ catalogue and journal domains are ported incrementally.
 The current foundation includes:
 
 - Django Ninja and PostgreSQL;
-- first-party email/password authentication for native and browser clients;
-- rotating, revocable JWT sessions and browser cookie/CSRF flows;
+- first-party email/password authentication for API clients;
+- rotating, revocable JWT sessions with JSON token responses;
 - organization roles, contacts, tags, and private images;
 - durable idempotency and asynchronous organization exports;
 - S3-compatible private storage and expiring image shares;
@@ -70,8 +70,9 @@ production settings, the container image, OpenAPI drift, and secret scanning.
 
 ## Current operating assumptions
 
-- Native clients receive refresh tokens in JSON. Browser clients use the
-  separate HttpOnly-cookie and CSRF contract in [security.md](docs/security.md).
+- API clients receive access and refresh tokens in JSON. The SvelteKit server
+  owns its browser-facing HttpOnly cookies; Django does not set authentication
+  cookies.
 - Organization `member` is currently an editor role, not a read-only role.
 - Django superusers are audited cross-tenant platform administrators; ordinary
   staff receives no tenant bypass.

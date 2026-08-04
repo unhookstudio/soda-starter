@@ -44,7 +44,6 @@ CORS_ALLOWED_ORIGINS = env.list(  # noqa: F405
 CSRF_TRUSTED_ORIGINS = env.list(  # noqa: F405
     "CSRF_TRUSTED_ORIGINS", default=[FRONTEND_URL]
 )
-BROWSER_REFRESH_COOKIE_SECURE = True
 
 DATABASES["default"].update(  # noqa: F405
     {

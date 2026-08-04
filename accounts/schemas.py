@@ -19,23 +19,6 @@ class CustomTokenOutputSchema(Schema):
     email: str
 
 
-class BrowserTokenOutputSchema(Schema):
-    access: str
-    email: str
-
-
-class BrowserAccessTokenOutputSchema(Schema):
-    access: str
-
-
-class BrowserRegistrationOutputSchema(BrowserTokenOutputSchema):
-    detail: str
-
-
-class CsrfTokenOutputSchema(Schema):
-    csrf_token: str
-
-
 class TokenRefreshInputSchema(Schema):
     refresh: str
     model_config = ConfigDict(extra="forbid")

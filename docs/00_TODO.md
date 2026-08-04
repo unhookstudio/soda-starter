@@ -98,14 +98,17 @@ The clean initial migrations have been regenerated. PostgreSQL setup now include
 
 ---
 
-## 5. Remove unused product features
+## 5. Remove unused product features ✅
+
+**Status:** Complete. The redundant browser-cookie authentication API was
+removed as a vertical slice; no retained product subsystem was removed.
 
 Delete features as complete vertical slices — models, routes, services, migrations, tests, settings, and documentation together.
 
 Remove only the starter surfaces that are not part of the intended product:
 
-1. Browser-auth routes, if redundant
-2. Any other route or sample behavior explicitly rejected in the product-boundary decision
+1. [x] Browser-auth routes and their schemas, settings, tests, and documentation
+2. [x] No other route or sample behavior is currently rejected by the product-boundary decision
 
 > Keep tags, images, image sharing, bulk image operations, and organization exports for now. Reassess the image API when catalogue-image requirements are concrete rather than removing tested capabilities speculatively.
 

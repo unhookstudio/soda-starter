@@ -8,8 +8,8 @@ revokes the associated device session. Logout takes the current refresh token
 and revokes it; logout-all, password reset, deactivation, and account deletion
 invalidate relevant sessions through `auth_version` and session state.
 Password change, password-reset confirmation, and completed email change return
-`reauthentication_required: true`. An iOS client must then delete its refresh
-token from Keychain, discard the in-memory access token, and present login.
+`reauthentication_required: true`. Clients must then discard both tokens and
+present login.
 
 JWTs use HS256 with an issuer, audience, and a signing key independent from
 Django's `SECRET_KEY`. To rotate normally, deploy support for both old and new
@@ -20,33 +20,25 @@ sessions, and restart web/workers.
 
 ## Client storage
 
-iOS clients keep the refresh token in Keychain with an accessibility class
-appropriate to the app and keep access tokens in memory. Never place tokens in
-UserDefaults, logs, analytics, crash metadata, URLs, or backups.
+The API returns access and refresh tokens in JSON and never sets authentication
+cookies. The SvelteKit server is the browser-facing session boundary: it calls
+the token endpoints server-to-server, stores both tokens in appropriately
+scoped `HttpOnly`, `Secure`, `SameSite` cookies, and forwards the access token to
+Django as a bearer credential. Tokens must never be exposed to browser
+JavaScript or placed in localStorage, sessionStorage, logs, analytics, crash
+metadata, or URLs.
 
-The JSON refresh-token API is for trusted native clients. Browser clients use
-the separate `/auth/browser/*` flow: the access token is returned in JSON and
-kept only in memory, while the refresh token is stored in a host-only,
-`HttpOnly`, `SameSite=Lax` cookie restricted to `/api/v1/auth/browser/`. The
-cookie is also `Secure` outside local development. It is never returned in a
-browser response body and must never be copied into localStorage or
-sessionStorage.
+Refresh rotates both credentials and replay revokes the associated device
+session. SvelteKit must replace both cookies atomically after refresh and clear
+them after logout, failed refresh, reauthentication-required responses, or an
+invalid session. Any future native client is responsible for equivalent secure
+platform storage.
 
-Before browser login, registration verification, refresh, or logout, call
-`GET /auth/browser/csrf` with credentials included. Send its `csrf_token` value
-in `X-CSRFToken` and continue including credentials on the state-changing
-request. The CSRF cookie is HttpOnly; clients use the response value rather than
-reading the cookie. Refresh rotates both credentials, replay revokes the device
-session, and logout is idempotent and clears the cookie even if the server-side
-session has already expired.
-
-The supported browser deployment is same-site sibling subdomains: for example,
-`app.example.com` with `api.example.com`, and `app-staging.example.com` with
-`api-staging.example.com`. List the exact frontend origin in both
-`CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`; credentialed CORS is enabled,
-but wildcard origins are not. A truly cross-site frontend is deliberately not a
-first-class configuration because it would require a different
-`SameSite=None` threat model.
+Django's CSRF middleware remains enabled for Django admin. The token API itself
+does not authenticate from cookies and therefore does not expose a separate
+CSRF bootstrap or browser-authentication route family. Browser-originated state
+changes terminate at SvelteKit and rely on its origin and CSRF protections
+before SvelteKit makes an authenticated server-to-server API request.
 
 Verification, email-change, and password-reset messages place tokens in URL
 fragments so normal server access logs do not receive them. The client submits
@@ -87,11 +79,11 @@ organization content is collaborative rather than creator-owned. Add a separate
 `viewer` role if a product needs read-only membership instead of weakening the
 meaning of `member` inconsistently across resources.
 
-Group organizations may have multiple owners but must retain at least one active
+Shared organizations may have multiple owners but must retain at least one active
 owner. Role changes, membership removal, account deactivation, and account
 deletion must use the transactional domain services in `organizations.services`;
 PostgreSQL deferred constraint triggers provide a final database guard against
-raw ORM or administrative mutations that would orphan a group.
+raw ORM or administrative mutations that would orphan a shared organization.
 
 Superusers may enter any tenant as platform administrators. Cross-tenant scope
 resolution emits a structured `platform_admin_tenant_access` audit event with
