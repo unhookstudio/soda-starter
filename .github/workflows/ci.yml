@@ -76,6 +76,8 @@ jobs:
         run: uv run pip-audit
       - name: Scan repository for secrets
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Production system checks
         env:
           SECRET_KEY: production-check-secret-key-with-more-than-fifty-random-characters-123
