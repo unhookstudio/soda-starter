@@ -562,7 +562,7 @@ wheels = [
 
 [[package]]
 name = "django-ninja-jwt"
-version = "5.4.5"
+version = "5.4.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
@@ -570,9 +570,9 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyjwt", extra = ["crypto"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/84/08/93f38595abdafb58d247abfd5cfcdaaeebac8d6012665e2b570dcfc6fe9b/django_ninja_jwt-5.4.5.tar.gz", hash = "sha256:8985db1dedca901c2dc87a4406f451853453b9b225ecb779ca7611599f416899", size = 40348, upload-time = "2026-07-21T08:49:28.057Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/15/819d52707db7b9f1fb16f021c961a3d7825c9000061d272b3918658654fd/django_ninja_jwt-5.4.4.tar.gz", hash = "sha256:14b145b89955ac5c89ed23a430dac388118f7bd9479cbb562fc076f1c3e13f6c", size = 40017, upload-time = "2026-01-22T01:53:44.256Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/2f/7dc1b2e8819d2ff13d499ebe2cd8778fbc05c18a2ad9897ae77bb491699c/django_ninja_jwt-5.4.5-py3-none-any.whl", hash = "sha256:25362551e26001f16f6dc483e92ce211a0764130ee058d397fdb119767e8454b", size = 88887, upload-time = "2026-07-21T08:49:27.056Z" },
+    { url = "https://files.pythonhosted.org/packages/26/b3/cc46af94ed93537d0680fffe5ca80080a3e9a7f4996051625a04b611689f/django_ninja_jwt-5.4.4-py3-none-any.whl", hash = "sha256:cc27b86542b4255fa21af0dc652aea15b59066ad5f46296f0c6faa193c5e5924", size = 88848, upload-time = "2026-01-22T01:53:42.998Z" },
 ]
 
 [[package]]
@@ -1558,7 +1558,7 @@ requires-dist = [
     { name = "django-environ", specifier = "==0.14.0" },
     { name = "django-ninja", specifier = "==1.6.2" },
     { name = "django-ninja-extra", specifier = "==0.31.6" },
-    { name = "django-ninja-jwt", specifier = "==5.4.5" },
+    { name = "django-ninja-jwt", specifier = "==5.4.4" },
     { name = "django-redis", specifier = "==7.0.0" },
     { name = "django-storages", specifier = "==1.14.6" },
     { name = "gunicorn", specifier = "==26.0.0" },

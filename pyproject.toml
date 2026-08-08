@@ -13,7 +13,7 @@ dependencies = [
     "django-environ==0.14.0",
     "django-ninja==1.6.2",
     "django-ninja-extra==0.31.6",
-    "django-ninja-jwt==5.4.5",
+    "django-ninja-jwt==5.4.4",
     "django-redis==7.0.0",
     "django-storages==1.14.6",
     "gunicorn==26.0.0",
