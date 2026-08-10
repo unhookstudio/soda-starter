@@ -9,6 +9,7 @@ from django.utils import timezone
 from organizations.export_tasks import (
     cleanup_expired_exports,
     export_org_data_task,
+    generate_organization_export,
     recover_stale_exports,
 )
 from organizations.models import ExportJob, Membership, Organization
@@ -29,13 +30,13 @@ def test_only_org_admins_can_create_exports(api_client, make_auth_headers):
     assert denied.status_code == 403
 
     admin_headers = make_auth_headers(api_client, admin, password="pw")
-    with patch("organizations.export_tasks.export_org_data_task.delay") as publish:
+    with patch("organizations.export_tasks.defer_task") as publish:
         response = api_client.post(f"/orgs/{org.slug}/exports/", headers=admin_headers)
     assert response.status_code == 202
     job = ExportJob.objects.get(pk=response.json()["id"])
     assert job.requested_by == admin
     assert job.queued_at is not None
-    publish.assert_called_once_with(str(job.pk))
+    publish.assert_called_once_with(export_org_data_task, job_id=str(job.pk))
 
 
 @pytest.mark.django_db
@@ -61,7 +62,7 @@ def test_processing_export_redelivery_replaces_the_deterministic_object(monkeypa
         "organizations.export_tasks.default_storage.save", lambda name, _file: name
     )
 
-    assert export_org_data_task.run(str(job.pk)) == str(job.pk)
+    assert generate_organization_export(str(job.pk)) == str(job.pk)
 
     job.refresh_from_db()
     expected_key = f"private/exports/{org.pk}/{job.pk}.zip"
@@ -92,7 +93,7 @@ def test_export_upload_is_deleted_when_ready_transition_fails(monkeypatch):
     )
 
     with pytest.raises(RuntimeError, match="database unavailable"):
-        export_org_data_task.run(str(job.pk))
+        generate_organization_export(str(job.pk))
 
     job.refresh_from_db()
     expected_key = f"private/exports/{org.pk}/{job.pk}.zip"
@@ -111,7 +112,7 @@ def test_duplicate_delivery_does_not_run_without_job_lock(monkeypatch):
 
     monkeypatch.setattr("organizations.export_tasks.export_job_lock", lock_not_acquired)
     with patch("organizations.export_tasks.build_export_archive") as build:
-        assert export_org_data_task.run(str(job.pk)) == str(job.pk)
+        assert generate_organization_export(str(job.pk)) == str(job.pk)
     build.assert_not_called()
     job.refresh_from_db()
     assert job.status == ExportJob.Status.PENDING
@@ -126,7 +127,7 @@ def test_ready_export_redelivery_is_a_noop(monkeypatch):
         object_key="private/exports/ready.zip",
     )
     with patch("organizations.export_tasks.build_export_archive") as build:
-        assert export_org_data_task.run(str(job.pk)) == str(job.pk)
+        assert generate_organization_export(str(job.pk)) == str(job.pk)
     build.assert_not_called()
     job.refresh_from_db()
     assert job.status == ExportJob.Status.READY
@@ -158,7 +159,7 @@ def test_stale_export_recovery_requeues_only_inactive_jobs(settings, monkeypatch
         lambda job: queued.append(job.pk),
     )
 
-    assert recover_stale_exports.run() == 2
+    assert recover_stale_exports() == 2
 
     stale_pending.refresh_from_db()
     stale_processing.refresh_from_db()
@@ -200,7 +201,7 @@ def test_retry_allows_failed_and_stale_but_rejects_active_exports(
     )
     headers = make_auth_headers(api_client, admin, password="pw")
 
-    with patch("organizations.export_tasks.export_org_data_task.delay") as publish:
+    with patch("organizations.export_tasks.defer_task") as publish:
         failed_response = api_client.post(
             f"/orgs/{org.slug}/exports/{failed.pk}/retry/", headers=headers
         )

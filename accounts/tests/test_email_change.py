@@ -7,13 +7,15 @@ from accounts.models import PendingEmailChange
 from accounts.services import revoke_all_sessions
 from accounts.tests.utils import create_test_user
 from accounts.tokens import hash_token
+from core.tasks import _send_email_task as _send_email_synchronously
 
 User = get_user_model()
 
 
 @pytest.mark.django_db
-def test_request_email_change_success(settings, api_client):
+def test_request_email_change_success(settings, api_client, monkeypatch):
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    monkeypatch.setattr("accounts.services.enqueue_email", _send_email_synchronously)
     user = create_test_user(email="old@example.com", password="pw")
     resp = api_client.post(
         "/token/pair", json={"email": "old@example.com", "password": "pw"}
@@ -58,8 +60,9 @@ def test_request_email_change_requires_current_password(api_client):
 
 
 @pytest.mark.django_db
-def test_verify_email_change_success(settings, api_client):
+def test_verify_email_change_success(settings, api_client, monkeypatch):
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    monkeypatch.setattr("accounts.services.enqueue_email", _send_email_synchronously)
     user = create_test_user(email="old2@example.com", password="pw")
     token = "testtoken123"
     expires = timezone.now() + timezone.timedelta(hours=1)

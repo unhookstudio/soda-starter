@@ -7,15 +7,16 @@ from contextlib import contextmanager
 from datetime import timedelta
 from typing import Callable
 
-from celery import shared_task
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
+from procrastinate.contrib.django import app
 
-from core.tasks import send_email_task
+from core.task_queue import defer_task, task_request_context
+from core.tasks import enqueue_email
 from organizations.export_archive import build_export_archive
 from organizations.models import ExportJob
 
@@ -79,7 +80,7 @@ def enqueue_export_job(job: ExportJob) -> None:
         raise RuntimeError("Only pending exports can be queued.")
     job.queued_at = queued_at
     try:
-        export_org_data_task.delay(str(job.pk))
+        defer_task(export_org_data_task, job_id=str(job.pk))
     except Exception:
         completed_at = timezone.now()
         ExportJob.objects.filter(pk=job.pk, status=ExportJob.Status.PENDING).update(
@@ -159,8 +160,7 @@ def _mark_export_ready(job: ExportJob, object_key: str) -> None:
         raise RuntimeError("Export job no longer belongs to this worker.")
 
 
-@shared_task(bind=True, acks_late=True, reject_on_worker_lost=True)
-def export_org_data_task(self, job_id: str):
+def generate_organization_export(job_id: str):
     with export_job_lock(job_id) as acquired:
         if not acquired:
             logger.info("exports:already_running job=%s", job_id)
@@ -239,7 +239,7 @@ def export_org_data_task(self, job_id: str):
 
         if job.requested_by is not None:
             try:
-                send_email_task.delay(
+                enqueue_email(
                     f"Your export for {job.organization.name} is ready",
                     (
                         "Your export is ready. Open the app to download it "
@@ -250,6 +250,12 @@ def export_org_data_task(self, job_id: str):
             except Exception:
                 logger.exception("exports:notification_publish_failed job=%s", job.pk)
         return str(job.pk)
+
+
+@app.task(queue="exports")
+def export_org_data_task(job_id: str, request_id=None):
+    with task_request_context(request_id):
+        return generate_organization_export(job_id)
 
 
 def _stale_export_query(cutoff):
@@ -274,7 +280,6 @@ def _stale_export_query(cutoff):
     return pending | processing
 
 
-@shared_task(acks_late=True, reject_on_worker_lost=True)
 def recover_stale_exports() -> int:
     now = timezone.now()
     cutoff = now - timedelta(seconds=export_stale_after_seconds())
@@ -298,7 +303,6 @@ def recover_stale_exports() -> int:
     return recovered
 
 
-@shared_task(acks_late=True, reject_on_worker_lost=True)
 def cleanup_expired_exports() -> int:
     jobs = ExportJob.objects.filter(
         status=ExportJob.Status.READY,
@@ -317,3 +321,17 @@ def cleanup_expired_exports() -> int:
         job.save(update_fields=["status", "object_key"])
         expired += 1
     return expired
+
+
+@app.periodic(cron="*/5 * * * *")
+@app.task(queue="maintenance", queueing_lock="recover-stale-exports")
+def recover_stale_exports_task(timestamp: int, request_id=None) -> int:
+    with task_request_context(request_id):
+        return recover_stale_exports()
+
+
+@app.periodic(cron="37 3 * * *")
+@app.task(queue="maintenance", queueing_lock="cleanup-expired-exports")
+def cleanup_expired_exports_task(timestamp: int, request_id=None) -> int:
+    with task_request_context(request_id):
+        return cleanup_expired_exports()

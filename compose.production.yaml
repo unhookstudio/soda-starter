@@ -9,7 +9,6 @@ x-app: &app
     DJANGO_SETTINGS_MODULE: DjangoApiStarter.settings.production
     POSTGRES_HOST: db
     POSTGRES_PORT: "5432"
-    REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD}@redis:6379/1
   networks:
     - backend
   init: true
@@ -31,8 +30,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready/', timeout=2)"]
       interval: 10s
@@ -42,20 +39,9 @@ services:
 
   worker:
     <<: *app
-    command: celery -A DjangoApiStarter worker --loglevel=INFO --queues=celery,email,exports,maintenance
+    command: python manage.py procrastinate worker --queues=email,exports,maintenance
     depends_on:
       db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  beat:
-    <<: *app
-    command: celery -A DjangoApiStarter beat --loglevel=INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
 
   db:
@@ -74,22 +60,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  redis:
-    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD}"]
-    volumes:
-      - redis_data:/data
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a '$$REDIS_PASSWORD' ping | grep PONG"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
 
   caddy:
     image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
@@ -115,6 +85,5 @@ networks:
 
 volumes:
   postgres_data:
-  redis_data:
   caddy_data:
   caddy_config:

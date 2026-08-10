@@ -8,7 +8,7 @@ make a derived product production-ready without product-specific review.
 
 Included by design:
 
-- Django Ninja, PostgreSQL, Redis, Celery, and Beat;
+- Django Ninja, PostgreSQL, and Procrastinate background jobs;
 - first-party email/password authentication for native and browser clients;
 - rotating, revocable JWT sessions and browser cookie/CSRF flows;
 - organization roles, contacts, tags, private images, and authenticated avatars;
@@ -45,7 +45,7 @@ Compose.
 
 ```sh
 cp env.example .env
-docker compose up -d db redis
+docker compose up -d db
 uv sync --frozen
 uv run python manage.py migrate
 uv run python manage.py seed_demo --password local-demo-password
@@ -56,11 +56,10 @@ uv run python manage.py runserver
 - OpenAPI UI: `http://localhost:8000/api/v1/docs`
 - health: `http://localhost:8000/health/live/` and `/health/ready/`
 
-Run Celery when working on email, exports, or scheduled cleanup:
+Run the Procrastinate worker when working on email, exports, or scheduled cleanup:
 
 ```sh
-uv run celery -A DjangoApiStarter worker -l INFO --queues=celery,email,exports,maintenance
-uv run celery -A DjangoApiStarter beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
+uv run python manage.py procrastinate worker --queues=email,exports,maintenance
 ```
 
 Development email is written to the console. Media workflows require the
@@ -79,7 +78,7 @@ uv run python manage.py check --database default
 uv run pip-audit
 ```
 
-CI also tests PostgreSQL, Redis, SMTP, S3-compatible storage, migrations,
+CI also tests PostgreSQL, SMTP, S3-compatible storage, migrations,
 production settings, the container image, OpenAPI drift, and secret scanning.
 
 ## Defaults to review
@@ -93,8 +92,8 @@ production settings, the container image, OpenAPI drift, and secret scanning.
   request a short-lived user/contact avatar URL; anonymous media access requires
   an explicit image share.
 - PostgreSQL is part of the contract. PostGIS is optional.
-- Redis is disposable cache/broker state. PostgreSQL remains authoritative for
-  domain data, sessions, idempotency, and jobs.
+- PostgreSQL is authoritative for domain data, sessions, idempotency,
+  rate-limit counters, and Procrastinate jobs.
 
 Review authorization, privacy, abuse prevention, availability, backups,
 restoration, monitoring, and compliance for every derived product.
@@ -102,9 +101,9 @@ restoration, monitoring, and compliance for every derived product.
 ## Deployment
 
 [compose.production.yaml](compose.production.yaml) is a maintained single-host
-example running Caddy, web, worker, Beat, PostgreSQL, and Redis. It is suitable
-only when single-host failure is acceptable and operations have a named owner;
-it is not a high-availability design.
+example running Caddy, web, a Procrastinate worker, and PostgreSQL. It is
+suitable only when single-host failure is acceptable and operations have a
+named owner; it is not a high-availability design.
 
 See [deployment.md](docs/deployment.md) and [operations.md](docs/operations.md).
 
@@ -114,6 +113,7 @@ See [deployment.md](docs/deployment.md) and [operations.md](docs/operations.md).
 - [API routes](docs/api-routes.md)
 - [Authentication and security](docs/security.md)
 - [Environment variables](docs/environment.md)
+- [Background jobs](docs/background-jobs.md)
 - [Adopting and renaming the starter](docs/adoption.md)
 - [Production deployment](docs/deployment.md)
 - [Operations and recovery](docs/operations.md)

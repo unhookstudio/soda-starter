@@ -1,9 +1,9 @@
 # Production deployment
 
 The supported example is a single Linux server running Docker Compose. Caddy is
-the only internet-facing service and terminates TLS. Django, PostgreSQL, and
-password-protected Redis share a private Compose network. Web, worker, and beat
-run as a non-root user with read-only root filesystems.
+the only internet-facing service and terminates TLS. Django and PostgreSQL share
+a private Compose network. Web and the Procrastinate worker run as a non-root
+user with read-only root filesystems.
 
 This is a sound default for a small product when the server, backups, upgrades,
 and monitoring have a named operator. Move to a managed database or an
@@ -32,9 +32,9 @@ Build and scan the exact commit in CI, publish it under an immutable tag, then:
 
 ```sh
 docker compose --env-file /etc/myapp/compose.env -f compose.production.yaml pull
-docker compose --env-file /etc/myapp/compose.env -f compose.production.yaml up -d db redis
+docker compose --env-file /etc/myapp/compose.env -f compose.production.yaml up -d db
 docker compose --env-file /etc/myapp/compose.env -f compose.production.yaml run --rm web python manage.py migrate --noinput
-docker compose --env-file /etc/myapp/compose.env -f compose.production.yaml up -d web worker beat caddy
+docker compose --env-file /etc/myapp/compose.env -f compose.production.yaml up -d web worker caddy
 curl --fail https://api.example.com/health/live/
 curl --fail https://api.example.com/health/ready/
 ```
@@ -50,7 +50,7 @@ migration without a tested restore.
 
 ## Configuration and TLS
 
-Production settings fail immediately when hosts, database, Redis, SMTP, signing,
+Production settings fail immediately when hosts, database, SMTP, signing,
 or storage values are absent. `SECRET_KEY` and `JWT_SIGNING_KEY` must be long,
 random, and independent. Caddy replaces forwarded scheme headers before proxying
 to Django, which is the only reason `SECURE_PROXY_SSL_HEADER` is enabled.
@@ -71,8 +71,8 @@ container directly while trusting caller-supplied forwarding headers.
 `WEB_CONCURRENCY` defaults to two bounded Gunicorn workers rather than deriving
 workers from host CPU count. Tune it from measured memory/latency under the
 container's resource limits. Compose allows 45 seconds for graceful shutdown;
-Celery tasks also have hard and soft time limits. Drain long export jobs before
-host maintenance where possible.
+Drain long export jobs before host maintenance where possible. Procrastinate
+workers resume queued work from PostgreSQL after restart.
 
 See [operations.md](operations.md) for backups, monitoring, release validation,
 and incident recovery.

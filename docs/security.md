@@ -66,13 +66,14 @@ user's `auth_version`, so changing/resetting the password or otherwise revoking
 all sessions invalidates an outstanding email-change token.
 
 Authentication, registration, reset, verification, contact search, upload, and
-public-share throttles use the shared cache and operation-specific scopes. Tests
-exercise real account throttle windows, client-IP separation, authenticated-user
-identity, cross-domain scope separation, and route-level 429 responses.
-`NINJA_NUM_PROXIES` must match the trusted deployment topology. These application
-throttles reduce ordinary abuse but use Django Ninja's non-atomic cache history
-algorithm, so they are not a hard guarantee under high concurrency; add
-upstream/provider abuse protection when product risk warrants it.
+public-share throttles use atomic fixed-window PostgreSQL buckets and
+operation-specific scopes. Bucket identities are SHA-256 hashed rather than
+stored as raw user or IP identifiers. Tests exercise real account throttle
+windows, client-IP separation, authenticated-user identity, cross-domain scope
+separation, and route-level 429 responses. `NINJA_NUM_PROXIES` must match the
+trusted deployment topology. These application throttles reduce ordinary abuse,
+but they are not a substitute for upstream/provider abuse and denial-of-service
+protection when product risk warrants it.
 
 ## Tenant roles
 

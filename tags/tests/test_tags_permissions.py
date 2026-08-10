@@ -8,13 +8,6 @@ from organizations.tests.utils import create_test_group
 User = get_user_model()
 
 
-@pytest.fixture(autouse=True)
-def _clear_cache_between_tests():
-    from django.core.cache import cache
-
-    cache.clear()
-
-
 def get_access_token(email, password):
     client = Client()
     resp = client.post(

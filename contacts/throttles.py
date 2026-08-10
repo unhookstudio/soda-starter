@@ -1,8 +1,9 @@
 from django.conf import settings
-from ninja.throttling import UserRateThrottle
+
+from core.throttling import PostgresRateThrottle
 
 
-class ContactSearchRateThrottle(UserRateThrottle):
+class ContactSearchRateThrottle(PostgresRateThrottle):
     scope = "contacts_search"
 
     def allow_request(self, request, view=None):

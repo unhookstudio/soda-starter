@@ -24,7 +24,6 @@ def _import_settings_with_env(
             "POSTGRES_USER": "app",
             "POSTGRES_PASSWORD": "database-secret",
             "POSTGRES_HOST": "db",
-            "REDIS_URL": "redis://redis:6379/1",
             "EMAIL_HOST": "smtp.example.com",
             "EMAIL_HOST_USER": "mailer",
             "EMAIL_HOST_PASSWORD": "email-secret",

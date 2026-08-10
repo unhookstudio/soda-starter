@@ -40,7 +40,7 @@ Before adding models, record which starter decisions the product keeps:
 - first-party authentication and native/browser client contracts;
 - globally visible-to-authenticated-users avatars;
 - explicit anonymous image sharing;
-- Celery/Redis background work;
+- PostgreSQL-backed background work and rate limiting;
 - the single-host Compose deployment example.
 
 Delete unused sample applications and their routes, settings, migrations, tests,
@@ -48,12 +48,12 @@ and documentation together. Do not leave dormant endpoints in production.
 
 ## Establish a clean baseline
 
-Copy the environment template, start PostgreSQL and Redis, and verify the
+Copy the environment template, start PostgreSQL, and verify the
 renamed project before product work:
 
 ```sh
 cp env.example .env
-docker compose up -d db redis
+docker compose up -d db
 uv sync --frozen
 uv run python manage.py migrate
 uv run python manage.py check --database default
