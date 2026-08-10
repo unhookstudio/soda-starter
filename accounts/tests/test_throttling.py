@@ -169,7 +169,7 @@ def test_authenticated_throttle_follows_user_across_ips_and_separates_users():
     assert other_user.status_code == 200
 
 
-def test_throttle_cache_keys_have_distinct_operation_scopes():
+def test_throttle_bucket_keys_have_distinct_operation_scopes():
     from accounts import throttles
     from contacts import throttles as contact_throttles
     from images import throttles as image_throttles

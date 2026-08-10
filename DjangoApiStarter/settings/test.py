@@ -1,3 +1,5 @@
+import os
+
 from .base import *  # noqa: F403
 
 DEBUG = True
@@ -9,15 +11,13 @@ NINJA_JWT = {
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
-    }
-}
-
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "soda-starter-tests",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_DB", "django_db"),
+        "USER": os.environ.get("POSTGRES_USER", "django_user"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "django_pass"),
+        "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
+        "PORT": int(os.environ.get("POSTGRES_PORT", "5432")),
+        "CONN_MAX_AGE": 0,
     }
 }
 
@@ -36,8 +36,4 @@ STORAGES = {
 
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
-CELERY_TASK_ALWAYS_EAGER = True
-CELERY_TASK_EAGER_PROPAGATES = True
-CELERY_RESULT_BACKEND = "cache+memory://"
-CELERY_BROKER_URL = "memory://"
 REQUIRE_EMAIL_VERIFICATION_FOR_LOGIN = False

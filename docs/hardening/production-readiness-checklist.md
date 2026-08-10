@@ -48,9 +48,9 @@ deployment target.
 - [x] Login uses Django authentication and rejects inactive users.
 - [x] Login, registration, resend, refresh, reset, and public share resolution
   are throttled and security events are audited without secret values.
-- [x] The single-Caddy proxy count is explicit; real throttle tests cover cache
-  windows, IP/user identity, independent scopes, and 429 responses without a
-  global bypass.
+- [x] The single-Caddy proxy count is explicit; real throttle tests cover
+  PostgreSQL-backed windows, IP/user identity, independent scopes, and 429
+  responses without a global bypass.
 - [x] Account-existence responses are generic where enumeration is relevant.
 - [x] Verification/reset/email-change tokens are hashed at rest, single-use,
   expiring, delivered asynchronously, and submitted by POST body.
@@ -116,10 +116,9 @@ deployment target.
 
 ## Background work and exports
 
-- [x] Celery uses JSON, late acknowledgement, worker-loss rejection, bounded
-  prefetch, hard/soft time limits, expiring nonsensitive results, and separated
-  email/export/maintenance queues.
-- [x] Request IDs propagate into published Celery tasks and worker log context.
+- [x] Procrastinate persists jobs in PostgreSQL, retries transient failures, prunes
+  retained job history, and separates email/export/maintenance queues.
+- [x] Request IDs propagate into published Procrastinate tasks and worker log context.
 - [x] Email retries transient failure, publication failure is observable, and no
   complete email body or token is logged.
 - [x] Export jobs persist requester, organization, status, timestamps, object
@@ -127,7 +126,7 @@ deployment target.
 - [x] Only admin/owner may create, inspect, download, or retry an export.
 - [x] Archives spool to disk and stream media rather than accumulating the whole
   ZIP in memory.
-- [x] Celery stores/returns job IDs, never signed download URLs.
+- [x] Procrastinate stores/returns job IDs, never signed download URLs.
 - [x] Authenticated retrieval creates a five-minute URL; the scheduled retention
   task deletes expired export objects.
 - [x] Failed exports are visible and safely retryable; exports are explicitly
@@ -135,7 +134,7 @@ deployment target.
 - [x] Export execution holds a whole-job PostgreSQL advisory lock, replaces a
   deterministic object key, compensates failed finalization, and records worker
   heartbeats and attempt counts.
-- [x] Beat requeues stale pending/processing exports; failed or stale jobs may be
+- [x] Periodic tasks requeue stale pending/processing exports; failed or stale jobs may be
   retried, fresh active jobs retain ownership, and terminal jobs are no-ops on
   duplicate delivery.
 
@@ -173,8 +172,8 @@ deployment target.
 
 ## CI and verification
 
-- [x] SQLite remains the fast unit-test default; the CI suite runs on PostgreSQL
-  with Redis-backed cache/throttling support.
+- [x] Tests and CI run on PostgreSQL, including atomic database-backed rate
+  limiting and the Procrastinate schema.
 - [x] Regression coverage includes tenant isolation, deletion invariants, token
   rotation/replay/revocation, password validation, publication failures, upload
   rollback, media reconciliation, idempotency mismatch, throttle identity/rate
@@ -191,9 +190,8 @@ deployment target.
   HTTP, and limits request bodies.
 - [x] Production sets secure cookies, strict hosts/CORS, HSTS, content sniffing,
   and framing protections and has no `unsafe-eval` CSP source.
-- [x] Redis is password-protected and reachable only on the private network.
-- [x] Liveness is downstream-free; readiness checks PostgreSQL and cache.
-- [x] Web/worker/beat run non-root with read-only roots, dropped capabilities,
+- [x] Liveness is downstream-free; readiness checks PostgreSQL.
+- [x] Web/worker run non-root with read-only roots, dropped capabilities,
   no-new-privileges, tmpfs scratch space, and graceful shutdown time.
 - [x] Gunicorn worker/thread/timeouts are environment-bounded rather than derived
   from host CPU count.
@@ -203,7 +201,7 @@ deployment target.
 - [x] Required metrics, alerts, log retention/access, queue/task inspection, and
   synthetic provider checks are documented.
 - [x] Encrypted PostgreSQL backup and restore scripts plus off-host retention,
-  RPO/RTO, Redis expectations, object versioning, and quarterly restore drills
+  RPO/RTO, object versioning, and quarterly restore drills
   are documented.
 - [x] JWT key, storage credential, and tenant deletion incident runbooks exist.
 
@@ -226,8 +224,8 @@ backup destination are intentionally not committed.
 - [ ] Clone into a clean environment and configure only from the documented
   templates/secret mechanism.
 - [ ] Build and scan the pinned production image; provision empty PostgreSQL,
-  Redis, captured SMTP, and one S3-compatible private bucket.
-- [ ] Apply migrations, then start web, worker, beat, and Caddy.
+  captured SMTP, and one S3-compatible private bucket.
+- [ ] Apply migrations, then start web, worker, and Caddy.
 - [ ] Register/verify/login; rotate and replay a refresh token; logout; reset the
   password and prove old sessions are invalid.
 - [ ] Exercise two tenants and prove cross-tenant isolation for contacts, tags,
@@ -241,5 +239,5 @@ backup destination are intentionally not committed.
   unexplained warnings.
 - [ ] Create an encrypted backup, restore it into isolation, reconcile stored
   media, and record achieved RPO/RTO.
-- [ ] Verify dashboards, alerts, worker/beat absence detection, SMTP delivery,
+- [ ] Verify dashboards, alerts, worker absence detection, SMTP delivery,
   storage versioning/lifecycle, and incident contacts.

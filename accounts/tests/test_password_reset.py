@@ -17,7 +17,7 @@ def test_password_reset_request_valid_email(settings, api_client):
     user = create_test_user(email="user@example.com", password="pass1234")
     url = "/auth/password-reset/request"
     data = {"email": "user@example.com"}
-    with patch("accounts.services.send_email_task.delay") as mock_send_email:
+    with patch("accounts.services.enqueue_email") as mock_send_email:
         response = api_client.post(url, json=data)
         assert response.status_code == 200
         assert "detail" in response.json()
@@ -57,7 +57,7 @@ def test_password_reset_request_deletes_previous(settings, api_client):
     )
     url = "/auth/password-reset/request"
     data = {"email": "user2@example.com"}
-    with patch("accounts.services.send_email_task.delay"):
+    with patch("accounts.services.enqueue_email"):
         response = api_client.post(url, json=data)
     assert response.status_code == 200
     # Only one PendingPasswordReset should exist now
@@ -69,13 +69,11 @@ def test_password_reset_request_email_send_failure(monkeypatch, api_client):
     create_test_user(email="failmail@example.com", password="pw")
     url = "/auth/password-reset/request"
     data = {"email": "failmail@example.com"}
-    # Patch send_email_task.delay to raise an exception
-    from core import tasks as core_tasks
 
     def fail_send_email_task(*args, **kwargs):
         raise Exception("Simulated email failure")
 
-    monkeypatch.setattr(core_tasks.send_email_task, "delay", fail_send_email_task)
+    monkeypatch.setattr("accounts.services.enqueue_email", fail_send_email_task)
     response = api_client.post(url, json=data)
     # Should still return 200 and generic message
     assert response.status_code == 200

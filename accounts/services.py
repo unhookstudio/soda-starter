@@ -14,7 +14,7 @@ from ninja_jwt.tokens import RefreshToken, UntypedToken
 from accounts.models import AuthSession
 from accounts.validation import normalize_and_validate_email
 from core.email_utils import render_email_template
-from core.tasks import send_email_task
+from core.tasks import enqueue_email
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -227,7 +227,7 @@ def send_templated_email(
 ) -> None:
     subject, body_text = render_email_template(template_name, context)
     try:
-        send_email_task.delay(subject, body_text, recipients)
+        enqueue_email(subject, body_text, recipients)
     except Exception:
         logger.exception(
             "accounts:email_task_publish_failed template=%s",

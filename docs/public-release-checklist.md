@@ -91,7 +91,7 @@ The README should make the following points obvious near the top:
   production-ready by itself.
 - Adopters must review authorization, privacy, abuse prevention, availability,
   backups, restoration, monitoring, and compliance for their product.
-- Redis, Celery, Beat, PostgreSQL, and S3-compatible storage are intentional
+- Procrastinate, PostgreSQL, and S3-compatible storage are intentional
   parts of this starter's architecture.
 - Unneeded applications and subsystems should be deleted rather than left
   dormant.
@@ -148,7 +148,7 @@ Verify that:
 
 - development defaults cannot accidentally be accepted by production settings;
 - `SECRET_KEY` and `JWT_SIGNING_KEY` are required and independent in production;
-- production database, Redis, SMTP, and object-storage credentials are required;
+- production database, SMTP, and object-storage credentials are required;
 - the deployment requires only a private object-storage bucket unless a derived
   product deliberately introduces anonymous public media;
 - debug mode is disabled in production;
@@ -184,7 +184,7 @@ applications:
 - asynchronous retry safety and duplicate execution;
 - export authorization, retention, cleanup, and failure recovery.
 
-Document important delivery guarantees. Celery tasks must be written with the
+Document important delivery guarantees. Procrastinate tasks must be written with the
 assumption that they can execute more than once. Side-effecting handlers should
 therefore be idempotent or protected by durable state.
 
@@ -233,7 +233,7 @@ Also verify the workflows CI performs:
 - run Django production deployment checks;
 - build and scan the production image;
 - start the image and pass the health-check smoke test;
-- exercise PostgreSQL, Redis, SMTP, and S3-compatible providers;
+- exercise PostgreSQL, SMTP, and S3-compatible providers;
 - run the configured secret scan.
 
 The ordinary CI secret scan may inspect only the pushed revision range. The
@@ -247,7 +247,7 @@ Also test the repository as a template rather than only as itself:
 
 1. Create a disposable repository from a clean copy.
 2. Rename the `DjangoApiStarter` Python package to a realistic project package.
-3. Update settings, Celery, ASGI/WSGI, scripts, Compose, and documentation
+3. Update settings, Procrastinate, ASGI/WSGI, scripts, Compose, and documentation
    references using the documented adoption procedure.
 4. Search for unintended `DjangoApiStarter`, repository-name, demo-domain, and
    placeholder references.
@@ -262,8 +262,8 @@ explicitly instead.
 Before or immediately after changing visibility:
 
 - add a concise GitHub repository description;
-- add relevant topics such as `django`, `django-ninja`, `postgresql`, `celery`,
-  `redis`, `jwt`, and `starter-template`;
+- add relevant topics such as `django`, `django-ninja`, `postgresql`,
+  `procrastinate`, `jwt`, and `starter-template`;
 - mark the repository as a GitHub template if that is the intended consumption
   model;
 - configure the issue tracker and pull-request policy;
@@ -292,7 +292,7 @@ historical checkout:
 - The production image built successfully, ran as the unprivileged application
   user on a read-only filesystem, and passed its live health check.
 - Trivy 0.70.0 reported no fixed HIGH or CRITICAL vulnerabilities in the image.
-- The PostgreSQL suite, Redis/SMTP/S3 provider smoke checks, production Django
+- The PostgreSQL suite, SMTP/S3 provider smoke checks, production Django
   deployment check, and encrypted PostgreSQL backup/restore exercise passed
   against the release snapshot before the branding-only commit.
 

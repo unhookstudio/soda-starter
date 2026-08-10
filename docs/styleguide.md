@@ -199,12 +199,12 @@ slow network requests.
 ## 11. Distinguish database commits from external side effects
 
 `transaction.atomic()` only governs the database. It cannot atomically include
-email, object storage, Celery publication, or third-party APIs.
+email, object storage, task publication, or third-party APIs.
 
 Schedule non-database work after a successful commit:
 
 ```python
-transaction.on_commit(lambda: send_receipt.delay(order.id))
+transaction.on_commit(lambda: enqueue_receipt(order.id))
 ```
 
 Use an outbox when a side effect must be durably scheduled despite a process

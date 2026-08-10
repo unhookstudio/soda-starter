@@ -7,8 +7,7 @@ access restricted to operators. Preserve `X-Request-ID` across systems. Alert on
 
 - readiness failure, elevated 5xx rate, p95/p99 latency, and disk saturation;
 - abnormal login failures/throttling and password-reset/email failure rates;
-- Redis unavailability, Celery queue age/depth, task failures/retries, and worker
-  or beat heartbeat absence;
+- Procrastinate queue age/depth, task failures/retries, and worker absence;
 - export/cleanup failures and private storage errors.
 
 Liveness proves only that the process responds. Readiness checks database and
@@ -31,8 +30,7 @@ Example cron entry (adjust paths and environment loading):
 
 Enable versioning on the media bucket. Apply an object lifecycle matching
 the application export retention, but do not expire current private media.
-Redis persistence helps restart behavior but Redis is never the system of
-record; lost cache/broker messages are recovered by retrying visible workflows.
+Procrastinate jobs and rate-limit counters are included in PostgreSQL backups.
 
 Quarterly, restore the newest backup into an isolated database with
 `deploy/restore-postgres.sh`, run migrations and `manage.py check`, compare row
@@ -43,16 +41,16 @@ run mode. Test retrieval of versioned objects. Record duration and evidence.
 
 Inspect worker logs and the persistent domain record first. Export jobs expose a
 safe failure state, activity heartbeat, attempt count, and admin retry endpoint.
-Beat automatically requeues pending or processing jobs after
-`EXPORT_STALE_AFTER_SECONDS`; keep that value longer than the Celery hard task
-limit. A PostgreSQL advisory lock prevents concurrent workers from generating
-the same export, and each attempt replaces the same object key. Email tasks
-retry transient exceptions three times; replay only after checking provider
-status and avoiding duplicate user-facing actions. Maintenance tasks are
-idempotent. Never replay a task by editing broker payloads containing user data.
+The periodic recovery task automatically requeues pending or processing jobs
+after `EXPORT_STALE_AFTER_SECONDS`. A PostgreSQL advisory lock prevents
+concurrent workers from generating the same export, and each attempt replaces
+the same object key. Email tasks retry transient exceptions three times; replay
+only after checking provider status and avoiding duplicate user-facing actions.
+Maintenance tasks are idempotent. Never replay a task by editing stored job
+arguments containing user data.
 
 Bulk image idempotency responses are retained in PostgreSQL for 24 hours and
-expired daily by the maintenance queue. Redis loss does not remove them. A
+expired daily by the maintenance queue. A
 rolled-back upload can still leave an unreferenced object because object storage
 is not transactional; upload keys contain a logged operation UUID, and
 `manage.py audit_media` finds and reconciles unreferenced objects
@@ -79,6 +77,6 @@ cannot preserve referential integrity.
 
 Before calling a derived product production-ready, execute the final gate in the
 [hardening checklist](hardening/production-readiness-checklist.md) against real
-PostgreSQL, Redis, SMTP capture, and S3-compatible services. CI verifies code;
+PostgreSQL, SMTP capture, and S3-compatible services. CI verifies code;
 operators must still prove DNS/TLS, delivery, backups, restoration, monitoring,
 and provider permissions in the target environment.

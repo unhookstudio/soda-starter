@@ -1,8 +1,8 @@
 import logging
 
-from celery import shared_task
 from django.core.management import call_command
 from django.utils import timezone
+from procrastinate.contrib.django import app
 
 from accounts.models import (
     AuthSession,
@@ -14,7 +14,6 @@ from accounts.models import (
 logger = logging.getLogger(__name__)
 
 
-@shared_task
 def cleanup_expired_tokens():
     now = timezone.now()
     expired_pw = PendingPasswordReset.objects.filter(expires_at__lt=now)
@@ -38,3 +37,9 @@ def cleanup_expired_tokens():
         registration_count,
         session_count,
     )
+
+
+@app.periodic(cron="7 3 * * *")
+@app.task(queue="maintenance", queueing_lock="cleanup-expired-tokens")
+def cleanup_expired_tokens_task(timestamp: int, request_id=None):
+    return cleanup_expired_tokens()
