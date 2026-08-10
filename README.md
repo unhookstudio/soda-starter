@@ -128,4 +128,8 @@ requests are welcome as time permits, but there is no support SLA or stable API
 compatibility promise. Report vulnerabilities privately as described in
 [SECURITY.md](SECURITY.md).
 
+See the [changelog](CHANGELOG.md) for the short release history. Version 0.2.0
+replaces the original Celery and Redis setup with PostgreSQL-backed
+Procrastinate jobs and rate limiting.
+
 Licensed under the [MIT License](LICENSE).
