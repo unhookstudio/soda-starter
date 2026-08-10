@@ -4,9 +4,9 @@ version = "0.1.0"
 description = "Somewhat Opinionated Django API Starter"
 requires-python = ">=3.14,<3.15"
 dependencies = [
-    "boto3==1.43.62",
+    "boto3==1.43.64",
     "celery==5.6.3",
-    "django==6.0.7",
+    "django==6.0.8",
     "django-celery-beat==2.9.0",
     "django-cors-headers==4.9.0",
     "django-csp==4.0",
